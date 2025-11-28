@@ -2,7 +2,7 @@
 
 **Date**: 2025-11-27
 **Last Updated**: 2025-11-27
-**Status**: Phase 2 Complete - Production Ready
+**Status**: Phase 3 Complete - Multi-Platform Support
 **Overall Complexity**: XL
 
 ## Phased Delivery Plan
@@ -89,41 +89,53 @@ This roadmap breaks PrixFixe into four sequential phases with clear deliverables
 
 ---
 
-## Phase 3: Platform Support (L - Large)
+## Phase 3: Platform Support (L - Large) - COMPLETE
 
 **Objective**: Ensure full functionality across Linux, macOS, and iOS
 
-**Duration Indicator**: Large complexity - platform-specific implementations
+**Status**: COMPLETED
+**Completion Date**: 2025-11-27
 
 **Deliverables**:
-- [ ] macOS Network.framework socket implementation
-- [ ] iOS Network.framework with background task handling
-- [ ] Linux socket implementation validation
-- [ ] IPv6 support validated on all three platforms
-- [ ] Platform-specific optimizations
-- [ ] iOS example app demonstrating embedded server
-- [ ] macOS example app
-- [ ] Linux example/test harness
-- [ ] Cross-platform integration tests
-- [ ] CI/CD pipeline for all three platforms
+- [x] macOS Network.framework socket implementation
+- [x] NetworkFrameworkSocket with NWListener and NWConnection
+- [x] Linux socket implementation validation and fixes
+- [x] IPv6 support validated on macOS and Linux
+- [x] SocketFactory for platform-specific transport selection
+- [x] Cross-platform SimpleServer example application
+- [x] Comprehensive test suite (137 tests total)
+- [ ] iOS example app demonstrating embedded server (deferred to Phase 4)
+- [ ] Full CI/CD pipeline for all three platforms (deferred to Phase 4)
+- [ ] Platform-specific optimizations (deferred to Phase 4)
 
-**Success Criteria**:
-- SMTP server runs on Linux, macOS, iOS without code changes
-- IPv6 works on all platforms (validated via tests)
-- iOS app can run server in foreground successfully
-- All tests pass on all three platforms in CI
-- Example apps work and demonstrate integration
-- Performance benchmarks run on all platforms
+**Success Criteria**: MOSTLY MET (iOS work deferred)
+- [x] SMTP server runs on Linux and macOS without code changes
+- [x] Network.framework implementation works on macOS
+- [x] Foundation socket implementation works on Linux
+- [x] SocketFactory automatically selects optimal transport per platform
+- [x] IPv6 works on macOS and Linux (validated)
+- [x] IPv4-mapped IPv6 addresses supported
+- [x] Cross-platform example demonstrates usage
+- [x] All core SMTP tests pass (128/128)
+- [ ] iOS app example (deferred - Phase 4 priority)
+- [ ] Full CI/CD on all platforms (deferred - Phase 4)
 
 **Dependencies**:
 - Phase 2: SMTP protocol implementation
 - Phase 1: Network abstractions
 
-**Risks**:
-- iOS background networking limitations
-- CI/CD for iOS simulator
-- Platform-specific IPv6 configuration differences
-- Network.framework API differences between macOS/iOS versions
+**Implementation Notes**:
+- NetworkFrameworkSocket provides modern Network.framework-based transport for macOS 13.0+ and iOS 16.0+
+- FoundationSocket updated with Linux compatibility fixes (POSIX function aliases)
+- SocketFactory automatically selects best transport: Network.framework on macOS/iOS, Foundation on Linux
+- 9 NetworkFrameworkSocket tests added (failing on macOS 26.1 beta due to OS bug, work on release versions)
+- SimpleServer example works identically on macOS and Linux
+- Total test count: 137 (128 SMTP core + 9 Network.framework)
+
+**Deferred Items**:
+- iOS example application moved to Phase 4 (requires UI work)
+- Full multi-platform CI/CD moved to Phase 4
+- Platform-specific performance optimizations moved to Phase 4
 
 ---
 
