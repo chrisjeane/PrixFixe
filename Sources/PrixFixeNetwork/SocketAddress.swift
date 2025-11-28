@@ -279,6 +279,12 @@ public enum NetworkError: Error, Sendable, CustomStringConvertible {
     case timeout
     case invalidState(String)
 
+    // TLS-specific errors
+    case tlsUpgradeFailed(String)
+    case invalidCertificate(String)
+    case tlsHandshakeFailed(String)
+    case tlsAlreadyActive
+
     public var description: String {
         switch self {
         case .invalidAddress(let msg):
@@ -299,6 +305,14 @@ public enum NetworkError: Error, Sendable, CustomStringConvertible {
             return "Operation timed out"
         case .invalidState(let msg):
             return "Invalid state: \(msg)"
+        case .tlsUpgradeFailed(let msg):
+            return "TLS upgrade failed: \(msg)"
+        case .invalidCertificate(let msg):
+            return "Invalid certificate: \(msg)"
+        case .tlsHandshakeFailed(let msg):
+            return "TLS handshake failed: \(msg)"
+        case .tlsAlreadyActive:
+            return "TLS is already active on this connection"
         }
     }
 }

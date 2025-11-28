@@ -65,12 +65,22 @@ public struct SMTPStateMachine: Sendable {
     /// Server domain name
     private let domain: String
 
+    /// Whether TLS is available (configured)
+    public var tlsAvailable: Bool
+
+    /// Whether TLS is currently active
+    public var tlsActive: Bool
+
     /// Initialize the state machine
-    /// - Parameter domain: The server's domain name
-    public init(domain: String) {
+    /// - Parameters:
+    ///   - domain: The server's domain name
+    ///   - tlsAvailable: Whether TLS is configured and available
+    public init(domain: String, tlsAvailable: Bool = false) {
         self.domain = domain
         self.state = .initial
         self.transaction = nil
+        self.tlsAvailable = tlsAvailable
+        self.tlsActive = false
     }
 
     /// Process a command and return the result
@@ -105,6 +115,9 @@ public struct SMTPStateMachine: Sendable {
         case .verify:
             // VRFY is optional and often disabled for security
             return .rejected(response: .notImplemented("VRFY"))
+
+        case .startTLS:
+            return processStartTLS()
 
         case .unknown(let cmd):
             return .rejected(response: .syntaxError("Unknown command: \(cmd)"))
@@ -141,10 +154,17 @@ public struct SMTPStateMachine: Sendable {
         state = .greeted
 
         // Advertise capabilities
-        let capabilities = [
+        var capabilities: [String] = []
+
+        // Only advertise STARTTLS if TLS is available and not already active
+        if tlsAvailable && !tlsActive {
+            capabilities.append("STARTTLS")
+        }
+
+        capabilities.append(contentsOf: [
             "SIZE 10485760",  // Max message size: 10MB
             "8BITMIME"        // 8-bit MIME support
-        ]
+        ])
 
         return .accepted(
             response: .ehlo(domain: domain, capabilities: capabilities),
@@ -245,6 +265,34 @@ public struct SMTPStateMachine: Sendable {
     private mutating func processQuit() -> SMTPCommandResult {
         state = .quit
         return .close(response: .closing(domain: domain))
+    }
+
+    private mutating func processStartTLS() -> SMTPCommandResult {
+        // STARTTLS only valid in greeted state (after EHLO/HELO)
+        guard state == .greeted else {
+            if state == .initial {
+                return .rejected(response: .badSequence("Send EHLO/HELO first"))
+            }
+            return .rejected(response: .badSequence("STARTTLS not allowed in current state"))
+        }
+
+        // Cannot use STARTTLS if TLS is already active
+        guard !tlsActive else {
+            return .rejected(response: SMTPResponse(code: .commandNotImplemented, message: "TLS already active"))
+        }
+
+        // Cannot use STARTTLS if TLS is not configured
+        guard tlsAvailable else {
+            return .rejected(response: SMTPResponse(code: .commandNotImplemented, message: "STARTTLS not available"))
+        }
+
+        // Signal that TLS upgrade should happen
+        // State will reset to .initial after upgrade (per RFC 3207)
+        // The session handler must perform the actual TLS upgrade
+        return .accepted(
+            response: SMTPResponse(code: .serviceReady, message: "Ready to start TLS"),
+            newState: .initial  // Reset to initial after TLS upgrade
+        )
     }
 
     // MARK: - Data Handling

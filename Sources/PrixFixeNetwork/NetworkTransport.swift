@@ -42,6 +42,60 @@ public protocol NetworkConnection: Sendable {
 
     /// The remote address of the connection
     var remoteAddress: any NetworkAddress { get }
+
+    /// Upgrade this connection to use TLS encryption
+    ///
+    /// This method performs an opportunistic TLS upgrade on an existing plaintext connection.
+    /// The upgrade is typically triggered by the SMTP STARTTLS command.
+    ///
+    /// ## Usage
+    ///
+    /// ```swift
+    /// let tlsConfig = TLSConfiguration(
+    ///     certificateSource: .file(
+    ///         certificatePath: "/path/to/cert.pem",
+    ///         privateKeyPath: "/path/to/key.pem"
+    ///     )
+    /// )
+    ///
+    /// try await connection.startTLS(configuration: tlsConfig)
+    /// // Connection is now encrypted
+    /// ```
+    ///
+    /// - Parameter configuration: TLS configuration including certificate and key
+    /// - Throws: `NetworkError.tlsUpgradeFailed` if the upgrade fails
+    /// - Throws: `NetworkError.invalidCertificate` if certificate is invalid
+    /// - Throws: `NetworkError.tlsHandshakeFailed` if handshake fails
+    /// - Throws: `NetworkError.tlsAlreadyActive` if TLS is already active
+    ///
+    /// - Important: Any buffered plaintext data must be cleared before calling this method
+    ///   to prevent security vulnerabilities.
+    ///
+    /// - Note: After a successful TLS upgrade, all subsequent read and write operations
+    ///   will be encrypted.
+    func startTLS(configuration: TLSConfiguration) async throws
+
+    /// Whether TLS is currently active on this connection
+    ///
+    /// Returns true if the connection has been successfully upgraded to TLS,
+    /// false if the connection is still plaintext.
+    var isTLSActive: Bool { get async }
+}
+
+// MARK: - Default Implementation
+
+extension NetworkConnection {
+    /// Default implementation that throws "not supported"
+    ///
+    /// Connection types that don't support TLS will use this default implementation.
+    public func startTLS(configuration: TLSConfiguration) async throws {
+        throw NetworkError.tlsUpgradeFailed("TLS not supported by this connection type")
+    }
+
+    /// Default implementation returns false
+    public var isTLSActive: Bool {
+        get async { false }
+    }
 }
 
 /// Protocol defining a network address abstraction

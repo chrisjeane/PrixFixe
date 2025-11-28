@@ -238,7 +238,8 @@ public actor SMTPServer {
                     maxCommandLength: 512,
                     maxMessageSize: configuration.maxMessageSize,
                     connectionTimeout: 300,  // 5 minutes
-                    commandTimeout: 60  // 1 minute
+                    commandTimeout: 60,  // 1 minute
+                    tlsConfiguration: configuration.tlsConfiguration
                 )
 
                 // Spawn a session handler
@@ -263,13 +264,13 @@ public actor SMTPServer {
     }
 
     /// Handle a single SMTP session
-    private func handleSession(connection: any NetworkConnection, configuration: SessionConfiguration) async {
+    private func handleSession(connection: any NetworkConnection, configuration sessionConfig: SessionConfiguration) async {
         // Capture messageHandler to avoid data race
         let handler = messageHandler
 
         let session = SMTPSession(
             connection: connection,
-            configuration: configuration,
+            configuration: sessionConfig,
             messageHandler: handler
         )
 
@@ -361,17 +362,42 @@ public struct ServerConfiguration: Sendable {
     ///   Adjust based on your application's needs.
     public let maxMessageSize: Int
 
+    /// TLS configuration for STARTTLS support (nil = TLS disabled)
+    ///
+    /// When configured, the server will advertise STARTTLS in EHLO responses
+    /// and allow clients to upgrade connections to TLS encryption.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// let tlsConfig = TLSConfiguration(
+    ///     certificateSource: .file(
+    ///         certificatePath: "/etc/ssl/certs/mail.example.com.pem",
+    ///         privateKeyPath: "/etc/ssl/private/mail.example.com.key"
+    ///     )
+    /// )
+    ///
+    /// let config = ServerConfiguration(
+    ///     domain: "mail.example.com",
+    ///     port: 587,
+    ///     tlsConfiguration: tlsConfig
+    /// )
+    /// ```
+    public let tlsConfiguration: TLSConfiguration?
+
     /// Default configuration suitable for development and testing.
     ///
     /// - Domain: "localhost"
     /// - Port: 2525 (non-privileged)
     /// - Max Connections: 100
     /// - Max Message Size: 10 MB
+    /// - TLS: Disabled
     public static let `default` = ServerConfiguration(
         domain: "localhost",
         port: 2525,
         maxConnections: 100,
-        maxMessageSize: 10 * 1024 * 1024 // 10 MB
+        maxMessageSize: 10 * 1024 * 1024, // 10 MB
+        tlsConfiguration: nil
     )
 
     /// Initialize a new server configuration.
@@ -381,16 +407,19 @@ public struct ServerConfiguration: Sendable {
     ///   - port: The TCP port to bind to.
     ///   - maxConnections: Maximum concurrent connections. Defaults to 100.
     ///   - maxMessageSize: Maximum message size in bytes. Defaults to 10 MB.
+    ///   - tlsConfiguration: Optional TLS configuration for STARTTLS. Defaults to nil (disabled).
     public init(
         domain: String = "localhost",
         port: UInt16,
         maxConnections: Int = 100,
-        maxMessageSize: Int = 10 * 1024 * 1024
+        maxMessageSize: Int = 10 * 1024 * 1024,
+        tlsConfiguration: TLSConfiguration? = nil
     ) {
         self.domain = domain
         self.port = port
         self.maxConnections = maxConnections
         self.maxMessageSize = maxMessageSize
+        self.tlsConfiguration = tlsConfiguration
     }
 }
 

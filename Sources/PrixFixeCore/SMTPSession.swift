@@ -45,7 +45,8 @@ public actor SMTPSession {
     ) {
         self.connection = connection
         self.configuration = configuration
-        self.stateMachine = SMTPStateMachine(domain: configuration.domain)
+        let tlsAvailable = configuration.tlsConfiguration != nil
+        self.stateMachine = SMTPStateMachine(domain: configuration.domain, tlsAvailable: tlsAvailable)
         self.parser = SMTPCommandParser()
         self.messageHandler = messageHandler
 
@@ -127,6 +128,12 @@ public actor SMTPSession {
     private func processCommand(_ line: String) async throws {
         // Parse the command
         let command = parser.parse(line)
+
+        // Special handling for STARTTLS
+        if case .startTLS = command {
+            try await handleStartTLS()
+            return
+        }
 
         // Process through state machine
         let result = stateMachine.process(command)
@@ -307,6 +314,46 @@ public actor SMTPSession {
         try await connection.write(data)
     }
 
+    /// Handle STARTTLS command
+    private func handleStartTLS() async throws {
+        // Validate state through state machine
+        let result = stateMachine.process(.startTLS)
+
+        guard case .accepted(let response, _) = result else {
+            if case .rejected(let errorResponse) = result {
+                try await sendResponse(errorResponse)
+            }
+            return
+        }
+
+        // Send 220 Ready to start TLS
+        try await sendResponse(response)
+
+        // CRITICAL SECURITY: Clear read buffers before TLS upgrade
+        // This prevents plaintext data from leaking into the TLS stream
+        readAheadBuffer.removeAll()
+
+        // Get TLS configuration from session config
+        guard let tlsConfig = configuration.tlsConfiguration else {
+            try await sendResponse(.localError("TLS not configured"))
+            return
+        }
+
+        // Upgrade connection to TLS
+        do {
+            try await connection.startTLS(configuration: tlsConfig)
+
+            // Mark TLS as active in state machine
+            stateMachine.tlsActive = true
+
+            // State machine already reset to .initial (client must send EHLO again)
+        } catch {
+            // TLS upgrade failed - send error and close connection
+            try? await sendResponse(.localError("TLS handshake failed"))
+            throw error
+        }
+    }
+
     // MARK: - Timeout Management
 
     /// Check if the connection has exceeded its total timeout
@@ -368,13 +415,17 @@ public struct SessionConfiguration: Sendable {
     /// Command timeout in seconds (0 = no timeout)
     public let commandTimeout: TimeInterval
 
+    /// TLS configuration (nil = TLS disabled)
+    public let tlsConfiguration: TLSConfiguration?
+
     /// Default configuration
     public static let `default` = SessionConfiguration(
         domain: "localhost",
         maxCommandLength: 512,
         maxMessageSize: 10 * 1024 * 1024,  // 10 MB
         connectionTimeout: 300,  // 5 minutes
-        commandTimeout: 60  // 1 minute per command
+        commandTimeout: 60,  // 1 minute per command
+        tlsConfiguration: nil
     )
 
     /// Initialize session configuration
@@ -383,13 +434,15 @@ public struct SessionConfiguration: Sendable {
         maxCommandLength: Int = 512,
         maxMessageSize: Int = 10 * 1024 * 1024,
         connectionTimeout: TimeInterval = 300,
-        commandTimeout: TimeInterval = 60
+        commandTimeout: TimeInterval = 60,
+        tlsConfiguration: TLSConfiguration? = nil
     ) {
         self.domain = domain
         self.maxCommandLength = maxCommandLength
         self.maxMessageSize = maxMessageSize
         self.connectionTimeout = connectionTimeout
         self.commandTimeout = commandTimeout
+        self.tlsConfiguration = tlsConfiguration
     }
 }
 

@@ -19,12 +19,14 @@ struct PrixFixeTests {
             domain: "mail.example.com",
             port: 8025,
             maxConnections: 50,
-            maxMessageSize: 5 * 1024 * 1024
+            maxMessageSize: 5 * 1024 * 1024,
+            tlsConfiguration: nil
         )
 
         #expect(config.domain == "mail.example.com")
         #expect(config.port == 8025)
         #expect(config.maxConnections == 50)
         #expect(config.maxMessageSize == 5 * 1024 * 1024)
+        #expect(config.tlsConfiguration == nil)
     }
 }

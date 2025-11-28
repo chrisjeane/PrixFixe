@@ -33,6 +33,9 @@ public enum SMTPCommand: Sendable, Equatable {
     /// VRFY command - Verify address (optional, often disabled)
     case verify(address: String)
 
+    /// STARTTLS command - Upgrade connection to TLS
+    case startTLS
+
     /// Unknown or unsupported command
     case unknown(command: String)
 
@@ -50,6 +53,7 @@ public enum SMTPCommand: Sendable, Equatable {
         case .noop: return "NOOP"
         case .quit: return "QUIT"
         case .verify: return "VRFY"
+        case .startTLS: return "STARTTLS"
         case .unknown(let cmd): return cmd
         }
     }
@@ -59,7 +63,7 @@ public enum SMTPCommand: Sendable, Equatable {
         switch self {
         case .helo, .ehlo, .mailFrom, .rcptTo, .verify:
             return true
-        case .data, .reset, .noop, .quit, .unknown:
+        case .data, .reset, .noop, .quit, .startTLS, .unknown:
             return false
         }
     }
@@ -127,6 +131,9 @@ public struct SMTPCommandParser: Sendable {
                 return .unknown(command: trimmed)
             }
             return .verify(address: parameters)
+
+        case "STARTTLS":
+            return .startTLS
 
         default:
             return .unknown(command: command)
@@ -206,6 +213,8 @@ extension SMTPCommand: CustomStringConvertible {
             return "QUIT"
         case .verify(let addr):
             return "VRFY \(addr)"
+        case .startTLS:
+            return "STARTTLS"
         case .unknown(let cmd):
             return "UNKNOWN: \(cmd)"
         }
