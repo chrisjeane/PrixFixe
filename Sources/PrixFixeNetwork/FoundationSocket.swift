@@ -82,10 +82,9 @@ public final class FoundationSocket: NetworkTransport, @unchecked Sendable {
             throw NetworkError.invalidState("Socket not listening")
         }
 
-        // Use async/await friendly approach - poll for readability then accept
-        return try await withCheckedThrowingContinuation { continuation in
-            // For now, blocking accept (Phase 1 simplification)
-            // TODO: Phase 2 - Use proper async I/O with kqueue/epoll
+        // Use detached task to avoid blocking cooperative thread pool
+        // The blocking accept() call runs on a thread pool managed by the global concurrent executor
+        return try await Task.detached {
             var addr = sockaddr_in6()
             var addrLen = socklen_t(MemoryLayout<sockaddr_in6>.size)
 
@@ -96,16 +95,14 @@ public final class FoundationSocket: NetworkTransport, @unchecked Sendable {
             }
 
             guard clientFD >= 0 else {
-                continuation.resume(throwing: NetworkError.acceptFailed("accept() failed: \(String(cString: strerror(errno)))"))
-                return
+                throw NetworkError.acceptFailed("accept() failed: \(String(cString: strerror(errno))))")
             }
 
             // Parse remote address
-            let remoteAddress = parseSocketAddress(from: addr)
+            let remoteAddress = self.parseSocketAddress(from: addr)
 
-            let connection = FoundationConnection(fileDescriptor: clientFD, remoteAddress: remoteAddress)
-            continuation.resume(returning: connection)
-        }
+            return FoundationConnection(fileDescriptor: clientFD, remoteAddress: remoteAddress)
+        }.value
     }
 
     public func close() async throws {
@@ -220,9 +217,9 @@ public final class FoundationConnection: NetworkConnection, @unchecked Sendable 
             throw NetworkError.connectionClosed
         }
 
-        return try await withCheckedThrowingContinuation { continuation in
-            // Simple blocking read for Phase 1
-            // TODO: Phase 2 - Use async I/O with kqueue/epoll
+        // Use detached task to avoid blocking cooperative thread pool
+        // The blocking read() call runs on a thread pool managed by the global concurrent executor
+        return try await Task.detached {
             var buffer = [UInt8](repeating: 0, count: maxBytes)
 
             let bytesRead = posixRead(fd, &buffer, maxBytes)
@@ -230,18 +227,18 @@ public final class FoundationConnection: NetworkConnection, @unchecked Sendable 
             if bytesRead < 0 {
                 let err = errno
                 if err == EAGAIN || err == EWOULDBLOCK {
-                    // Would block - try again (in real async version, we'd wait for readability)
-                    continuation.resume(returning: Data())
+                    // Non-blocking socket would block - return empty data to retry
+                    return Data()
                 } else {
-                    continuation.resume(throwing: NetworkError.readFailed("read() failed: \(String(cString: strerror(err)))"))
+                    throw NetworkError.readFailed("read() failed: \(String(cString: strerror(err))))")
                 }
             } else if bytesRead == 0 {
                 // Connection closed
-                continuation.resume(throwing: NetworkError.connectionClosed)
+                throw NetworkError.connectionClosed
             } else {
-                continuation.resume(returning: Data(buffer.prefix(bytesRead)))
+                return Data(buffer.prefix(bytesRead))
             }
-        }
+        }.value
     }
 
     public func write(_ data: Data) async throws {
@@ -249,23 +246,47 @@ public final class FoundationConnection: NetworkConnection, @unchecked Sendable 
             throw NetworkError.connectionClosed
         }
 
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            // Simple blocking write for Phase 1
-            let bytesWritten = data.withUnsafeBytes { bufferPtr in
-                posixWrite(fd, bufferPtr.baseAddress!, data.count)
-            }
+        // Use detached task to avoid blocking cooperative thread pool
+        // Implements retry logic for partial writes
+        try await Task.detached {
+            var remainingData = data
+            var totalWritten = 0
+            let maxRetries = 10
+            var retryCount = 0
 
-            if bytesWritten < 0 {
-                let err = errno
-                continuation.resume(throwing: NetworkError.writeFailed("write() failed: \(String(cString: strerror(err)))"))
-            } else if bytesWritten < data.count {
-                // Partial write - in production, we'd retry
-                // TODO: Phase 2 - Handle partial writes properly
-                continuation.resume(throwing: NetworkError.writeFailed("Partial write: \(bytesWritten)/\(data.count) bytes"))
-            } else {
-                continuation.resume(returning: ())
+            while totalWritten < data.count {
+                let bytesWritten = remainingData.withUnsafeBytes { bufferPtr in
+                    posixWrite(fd, bufferPtr.baseAddress!, remainingData.count)
+                }
+
+                if bytesWritten < 0 {
+                    let err = errno
+                    if err == EAGAIN || err == EWOULDBLOCK {
+                        // Non-blocking socket would block - retry after brief delay
+                        retryCount += 1
+                        if retryCount > maxRetries {
+                            throw NetworkError.writeFailed("write() exceeded max retries (EAGAIN)")
+                        }
+                        // Brief sleep to avoid tight loop
+                        try await Task.sleep(nanoseconds: 1_000_000) // 1ms
+                        continue
+                    } else {
+                        throw NetworkError.writeFailed("write() failed: \(String(cString: strerror(err))))")
+                    }
+                } else if bytesWritten == 0 {
+                    // No bytes written - socket may be closed
+                    throw NetworkError.writeFailed("write() returned 0 bytes")
+                } else {
+                    // Successfully wrote some bytes
+                    totalWritten += bytesWritten
+                    if totalWritten < data.count {
+                        // Partial write - continue with remaining data
+                        remainingData = remainingData.advanced(by: bytesWritten)
+                        retryCount = 0 // Reset retry count on successful write
+                    }
+                }
             }
-        }
+        }.value
     }
 
     public func close() async throws {

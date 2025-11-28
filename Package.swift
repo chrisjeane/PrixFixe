@@ -42,7 +42,7 @@ let package = Package(
         /// Networking abstractions and platform-specific implementations
         .target(
             name: "PrixFixeNetwork",
-            dependencies: [],
+            dependencies: ["PrixFixePlatform"],
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency")
             ]

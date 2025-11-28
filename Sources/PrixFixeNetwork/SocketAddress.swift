@@ -79,11 +79,50 @@ public struct SocketAddress: NetworkAddress, Sendable, Hashable {
         )
     }
 
-    // Unsafe initializer for internal use after validation
+    /// Unsafe initializer for internal use after validation.
+    ///
+    /// - Warning: This method bypasses all validation and creates a `SocketAddress` with the provided values directly.
+    ///   It assumes the caller has already validated that:
+    ///   - The `host` string is a valid IPv6 address or IPv4-mapped IPv6 address
+    ///   - The `family` correctly matches the format of `host`
+    ///   - The `zoneID` is valid for link-local addresses (or nil otherwise)
+    ///
+    /// - Important: Using this method with invalid data will create a malformed `SocketAddress` that will
+    ///   fail when used with actual socket operations. Only use this after performing validation with
+    ///   `parseIPv6()` or `parseIPv4()`.
+    ///
+    /// - Parameters:
+    ///   - family: The address family (must match the host format)
+    ///   - host: A pre-validated IP address string
+    ///   - port: The port number (0-65535)
+    ///   - zoneID: Optional zone identifier for link-local addresses
+    ///
+    /// - Returns: A `SocketAddress` with the provided values (no validation performed)
     private static func __unsafeInit(family: Family, host: String, port: UInt16, zoneID: String?) -> SocketAddress {
         SocketAddress(unsafeFamily: family, unsafeHost: host, port: port, zoneID: zoneID)
     }
 
+    /// Private initializer that skips all validation.
+    ///
+    /// - Warning: This is an unsafe initializer that bypasses validation. It should only be called
+    ///   from `__unsafeInit()` after proper validation has been performed, or from predefined
+    ///   factory methods like `localhost()` where the values are hardcoded and known to be valid.
+    ///
+    /// - Important: This initializer is marked private to prevent external callers from creating
+    ///   invalid `SocketAddress` instances. All public APIs must validate their inputs before
+    ///   using this initializer.
+    ///
+    /// The safety contract for this initializer:
+    /// - Caller MUST ensure `unsafeHost` is a syntactically valid IPv6 address
+    /// - Caller MUST ensure `unsafeFamily` correctly describes the address type in `unsafeHost`
+    /// - Caller MUST ensure `zoneID` is valid for the address (or nil for non-link-local)
+    /// - Caller MUST ensure `port` is within valid range (0-65535, enforced by UInt16 type)
+    ///
+    /// - Parameters:
+    ///   - unsafeFamily: The address family (assumed to match unsafeHost)
+    ///   - unsafeHost: An IP address string (assumed to be pre-validated)
+    ///   - port: The port number
+    ///   - zoneID: Optional zone identifier for link-local addresses
     private init(unsafeFamily: Family, unsafeHost: String, port: UInt16, zoneID: String?) {
         self.family = unsafeFamily
         self.host = unsafeHost

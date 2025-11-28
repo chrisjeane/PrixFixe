@@ -33,6 +33,8 @@
 ///   implementation for testing or advanced use cases.
 
 import Foundation
+import PrixFixePlatform
+
 #if canImport(Network)
 import Network
 #endif
@@ -55,6 +57,7 @@ public enum SocketFactory {
     /// - iOS 16.0+: ``NetworkFrameworkSocket`` (required)
     /// - Linux: ``FoundationSocket`` (only option)
     /// - Older macOS: ``FoundationSocket`` (fallback)
+    /// - macOS 26.1 beta: ``FoundationSocket`` (workaround for NWListener bug)
     ///
     /// ## Example
     ///
@@ -63,9 +66,17 @@ public enum SocketFactory {
     /// try await transport.bind(to: .anyAddress(port: 2525))
     /// try await transport.listen(backlog: 100)
     /// ```
+    ///
+    /// - Note: On macOS 26.1 beta, this automatically falls back to FoundationSocket
+    ///   due to a known NWListener binding bug in the beta OS (POSIX error 22).
     public static func createTransport() -> any NetworkTransport {
         #if canImport(Network)
         if #available(macOS 13.0, iOS 16.0, *) {
+            // Workaround for macOS 26.1 beta NWListener bug
+            // If the OS has the known Network.framework bug, fall back to FoundationSocket
+            if PlatformCapabilities.current.hasNetworkFrameworkBug {
+                return FoundationSocket()
+            }
             return NetworkFrameworkSocket()
         } else {
             // Fallback for older OS versions
@@ -104,9 +115,15 @@ public enum SocketFactory {
     /// Query which transport implementation will be used by default
     ///
     /// - Returns: The type of transport that will be created
+    ///
+    /// - Note: On macOS 26.1 beta, returns `.foundation` due to the NWListener bug workaround.
     public static var defaultTransportType: TransportType {
         #if canImport(Network)
         if #available(macOS 13.0, iOS 16.0, *) {
+            // Workaround for macOS 26.1 beta NWListener bug
+            if PlatformCapabilities.current.hasNetworkFrameworkBug {
+                return .foundation
+            }
             return .networkFramework
         } else {
             return .foundation
