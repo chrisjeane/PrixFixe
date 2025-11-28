@@ -69,8 +69,16 @@ func SSL_CTX_new(_ method: SSL_METHOD?) -> SSL_CTX?
 @_silgen_name("SSL_CTX_free")
 func SSL_CTX_free(_ ctx: SSL_CTX?)
 
-@_silgen_name("SSL_CTX_set_min_proto_version")
-func SSL_CTX_set_min_proto_version(_ ctx: SSL_CTX?, _ version: Int32) -> Int32
+// SSL_CTX_set_min_proto_version is a macro in OpenSSL, use SSL_CTX_ctrl directly
+@_silgen_name("SSL_CTX_ctrl")
+func SSL_CTX_ctrl(_ ctx: SSL_CTX?, _ cmd: Int32, _ larg: Int, _ parg: UnsafeMutableRawPointer?) -> Int
+
+// SSL_CTRL_SET_MIN_PROTO_VERSION = 123
+private let SSL_CTRL_SET_MIN_PROTO_VERSION: Int32 = 123
+
+func SSL_CTX_set_min_proto_version(_ ctx: SSL_CTX?, _ version: Int32) -> Int32 {
+    return Int32(SSL_CTX_ctrl(ctx, SSL_CTRL_SET_MIN_PROTO_VERSION, Int(version), nil))
+}
 
 @_silgen_name("SSL_CTX_use_certificate_file")
 func SSL_CTX_use_certificate_file(_ ctx: SSL_CTX?, _ file: UnsafePointer<CChar>?, _ type: Int32) -> Int32

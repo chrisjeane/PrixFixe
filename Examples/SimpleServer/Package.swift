@@ -14,7 +14,12 @@ let package = Package(
         .executableTarget(
             name: "SimpleServer",
             dependencies: ["PrixFixe"],
-            path: "."
+            path: ".",
+            linkerSettings: [
+                // Link OpenSSL on Linux for TLS support
+                .linkedLibrary("ssl", .when(platforms: [.linux])),
+                .linkedLibrary("crypto", .when(platforms: [.linux]))
+            ]
         )
     ]
 )

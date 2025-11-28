@@ -6,9 +6,10 @@
 # ============================================================================
 FROM swift:6.0-jammy AS builder
 
-# Install system dependencies for building
+# Install system dependencies for building (including OpenSSL for TLS)
 RUN apt-get update && apt-get install -y \
     libsqlite3-dev \
+    libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -40,10 +41,11 @@ RUN swift build -c release
 # Use Swift slim runtime which includes necessary Swift runtime libraries
 FROM swift:6.0-jammy-slim
 
-# Install runtime dependencies only
+# Install runtime dependencies only (including OpenSSL for TLS)
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     libsqlite3-0 \
+    libssl3 \
     procps \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
@@ -84,8 +86,8 @@ ENV SMTP_DOMAIN=localhost \
 
 # Labels for metadata
 LABEL org.opencontainers.image.title="PrixFixe SMTP Server" \
-      org.opencontainers.image.description="Lightweight embedded SMTP server written in Swift" \
-      org.opencontainers.image.version="0.1.0" \
+      org.opencontainers.image.description="Lightweight embedded SMTP server written in Swift with STARTTLS support" \
+      org.opencontainers.image.version="0.2.0" \
       org.opencontainers.image.authors="PrixFixe Team" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.source="https://github.com/yourusername/PrixFixe"

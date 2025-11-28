@@ -1,0 +1,32 @@
+{
+  "test_type": "burst",
+  "servers": [
+    "localhost"
+  ],
+  "port": 2525,
+  "message_size": 10240,
+  "concurrent_workers": 20,
+  "target_rate": null,
+  "metrics": {
+    "total_messages": 2000,
+    "successful_messages": 2000,
+    "failed_messages": 0,
+    "connection_errors": 0,
+    "total_bytes_sent": 20280000,
+    "duration_seconds": 3.0333399772644043,
+    "messages_per_second": 659.3392151853963,
+    "latency_ms": {
+      "avg": 8.885234832763672,
+      "min": 1.4019012451171875,
+      "max": 1063.8408660888672,
+      "p50": 7.812738418579102,
+      "p90": 8.70344638824463,
+      "p95": 9.15820598602295,
+      "p99": 15.564208030700684,
+      "p99_9": 16.963778972832806
+    },
+    "error_breakdown": {},
+    "start_time": "2025-11-28T19:56:50.770237",
+    "end_time": "2025-11-28T19:56:53.803577"
+  }
+}
