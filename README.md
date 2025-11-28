@@ -96,6 +96,10 @@ Then add it to your target:
 - Linux: Uses Foundation sockets (BSD/POSIX)
 - Older macOS: Falls back to Foundation sockets
 
+### Known Limitation: macOS 26.1 Beta
+
+If you are running macOS 26.1 beta, you may experience 9 Network.framework test failures due to an NWListener binding bug in the beta OS. This is **not a code defect** - all tests pass on stable macOS releases. The library is fully functional for production use on stable macOS versions. This limitation only affects testing on the macOS beta and does not impact deployment.
+
 ## Architecture
 
 PrixFixe is organized into focused modules:
