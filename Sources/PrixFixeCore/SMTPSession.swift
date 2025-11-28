@@ -314,7 +314,36 @@ public actor SMTPSession {
         try await connection.write(data)
     }
 
-    /// Handle STARTTLS command
+    /// Handle STARTTLS command and perform TLS upgrade
+    ///
+    /// This method orchestrates the TLS upgrade process:
+    /// 1. Validates the STARTTLS command through the state machine
+    /// 2. Sends "220 Ready to start TLS" response
+    /// 3. Clears all read buffers (critical security measure)
+    /// 4. Upgrades the connection to TLS
+    /// 5. Updates state machine to mark TLS as active
+    ///
+    /// ## Security Measures
+    ///
+    /// This implementation includes critical security measures:
+    /// - **Buffer Clearance**: All read-ahead buffers are cleared before TLS upgrade
+    ///   to prevent plaintext data from leaking into the encrypted stream
+    /// - **State Reset**: State machine resets to initial state, requiring fresh EHLO
+    /// - **No Downgrade**: Once TLS is active, it cannot be downgraded to plaintext
+    ///
+    /// ## State Transitions
+    ///
+    /// After successful TLS upgrade:
+    /// - State machine resets to `.initial`
+    /// - `tlsActive` flag is set to true
+    /// - Client must send EHLO again over the encrypted connection (per RFC 3207)
+    /// - STARTTLS is no longer advertised in subsequent EHLO responses
+    ///
+    /// - Throws: `NetworkError` if TLS upgrade fails
+    /// - Throws: `SMTPError` if the state machine rejects the command
+    ///
+    /// - Important: This method implements RFC 3207 Section 4.2 requirements for
+    ///   buffer handling and state management during TLS upgrade.
     private func handleStartTLS() async throws {
         // Validate state through state machine
         let result = stateMachine.process(.startTLS)

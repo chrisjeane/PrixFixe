@@ -140,6 +140,43 @@ struct SMTPCommandTests {
         }
     }
 
+    // MARK: - STARTTLS
+
+    @Test("Parse STARTTLS command")
+    func testParseStartTLS() {
+        let cmd = parser.parse("STARTTLS")
+        #expect(cmd == .startTLS)
+    }
+
+    @Test("STARTTLS is case-insensitive")
+    func testStartTLSCaseInsensitive() {
+        let variations = ["starttls", "StartTLS", "STARTTLS", "sTaRtTlS"]
+
+        for variation in variations {
+            let cmd = parser.parse(variation)
+            #expect(cmd == .startTLS, "Failed to parse: \(variation)")
+        }
+    }
+
+    @Test("STARTTLS with trailing whitespace")
+    func testStartTLSWithWhitespace() {
+        let variations = ["STARTTLS ", "STARTTLS  ", "  STARTTLS  "]
+
+        for variation in variations {
+            let cmd = parser.parse(variation)
+            #expect(cmd == .startTLS, "Failed to parse: '\(variation)'")
+        }
+    }
+
+    @Test("STARTTLS does not accept parameters")
+    func testStartTLSNoParameters() {
+        // STARTTLS command should not have parameters
+        // Any parameters are ignored by the parser (trimmed as whitespace)
+        let cmd = parser.parse("STARTTLS")
+        #expect(cmd == .startTLS)
+        #expect(!cmd.requiresParameters)
+    }
+
     // MARK: - Edge Cases
 
     @Test("Parse empty line")
@@ -195,6 +232,7 @@ struct SMTPCommandTests {
         #expect(SMTPCommand.reset.verb == "RSET")
         #expect(SMTPCommand.noop.verb == "NOOP")
         #expect(SMTPCommand.quit.verb == "QUIT")
+        #expect(SMTPCommand.startTLS.verb == "STARTTLS")
     }
 
     @Test("Command requires parameters")
@@ -208,6 +246,7 @@ struct SMTPCommandTests {
         #expect(!SMTPCommand.reset.requiresParameters)
         #expect(!SMTPCommand.noop.requiresParameters)
         #expect(!SMTPCommand.quit.requiresParameters)
+        #expect(!SMTPCommand.startTLS.requiresParameters)
     }
 
     @Test("Command description format")

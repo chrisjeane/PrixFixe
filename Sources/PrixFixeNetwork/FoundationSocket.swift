@@ -203,9 +203,9 @@ public final class FoundationConnection: NetworkConnection, @unchecked Sendable 
     #if canImport(Darwin)
     private var sslContext: SSLContext?
     #elseif canImport(Glibc)
-    // OpenSSL state (will be implemented in Phase 3)
-    private var sslContext: OpaquePointer?
-    private var sslConnection: OpaquePointer?
+    // OpenSSL state
+    private var opensslContext: OpenSSLContext?
+    private var opensslConnection: OpenSSLConnection?
     #endif
 
     init(fileDescriptor: Int32, remoteAddress: any NetworkAddress) {
@@ -221,7 +221,9 @@ public final class FoundationConnection: NetworkConnection, @unchecked Sendable 
                 SSLClose(context)
             }
             #elseif canImport(Glibc)
-            // OpenSSL cleanup will be added in Phase 3
+            // OpenSSL cleanup happens automatically in deinit of wrappers
+            opensslConnection = nil
+            opensslContext = nil
             #endif
 
             if let fd = fileDescriptor {
@@ -503,19 +505,66 @@ public final class FoundationConnection: NetworkConnection, @unchecked Sendable 
     #if canImport(Glibc)
 
     private func startTLS_Linux(configuration: TLSConfiguration, fileDescriptor fd: Int32) throws {
-        // Linux TLS implementation using OpenSSL (Phase 3)
-        // This will be implemented in the next phase
-        throw NetworkError.tlsUpgradeFailed("Linux TLS support not yet implemented")
+        // Create OpenSSL context
+        let context = try OpenSSLContext()
+
+        // Set minimum TLS version
+        try context.setMinimumTLSVersion(configuration.minimumTLSVersion)
+
+        // Load certificate and private key based on source
+        switch configuration.certificateSource {
+        case .file(let certPath, let keyPath):
+            // Load from files
+            try context.loadCertificateFile(certPath)
+            try context.loadPrivateKeyFile(keyPath)
+
+        case .data(let certData, let keyData, let password):
+            // Load from in-memory data
+            try context.loadCertificateData(certData)
+            try context.loadPrivateKeyData(keyData, password: password)
+
+        case .selfSigned(let commonName):
+            // Self-signed certificates not yet implemented
+            throw NetworkError.tlsUpgradeFailed("Self-signed certificates not yet supported on Linux")
+        }
+
+        // Verify that the private key matches the certificate
+        try context.checkPrivateKey()
+
+        // Create SSL connection
+        let connection = try context.createConnection()
+
+        // Attach to file descriptor
+        try connection.setFileDescriptor(fd)
+
+        // Perform TLS handshake (server side)
+        try connection.acceptHandshake()
+
+        // Store state
+        self.opensslContext = context
+        self.opensslConnection = connection
     }
 
     private func readTLS(maxBytes: Int) async throws -> Data {
-        // Linux TLS read (Phase 3)
-        throw NetworkError.tlsUpgradeFailed("Linux TLS support not yet implemented")
+        guard let connection = lock.withLock({ opensslConnection }) else {
+            throw NetworkError.invalidState("TLS not active")
+        }
+
+        // Use detached task for blocking I/O
+        return try await Task.detached {
+            try connection.read(maxBytes: maxBytes)
+        }.value
     }
 
     private func writeTLS(data: Data) async throws {
-        // Linux TLS write (Phase 3)
-        throw NetworkError.tlsUpgradeFailed("Linux TLS support not yet implemented")
+        guard let connection = lock.withLock({ opensslConnection }) else {
+            throw NetworkError.invalidState("TLS not active")
+        }
+
+        // Use detached task for blocking I/O
+        try await Task.detached {
+            try connection.write(data)
+        }.value
     }
 
     #endif // canImport(Glibc)

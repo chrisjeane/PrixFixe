@@ -85,8 +85,33 @@ import PrixFixeMessage
 ///
 /// - ``messageHandler``
 ///
-/// - Note: The server implements RFC 5321 core SMTP. It does not support STARTTLS, SMTP AUTH,
-///   or other extensions in version 0.1.0.
+/// ## TLS Support
+///
+/// The server supports STARTTLS (RFC 3207) for upgrading connections to TLS:
+///
+/// ```swift
+/// let tlsConfig = TLSConfiguration(
+///     certificateSource: .file(
+///         certificatePath: "/etc/ssl/certs/mail.example.com.pem",
+///         privateKeyPath: "/etc/ssl/private/mail.example.com.key"
+///     ),
+///     minimumTLSVersion: .tls12
+/// )
+///
+/// let config = ServerConfiguration(
+///     domain: "mail.example.com",
+///     port: 587,
+///     tlsConfiguration: tlsConfig
+/// )
+///
+/// let server = SMTPServer(configuration: config)
+/// try await server.start()
+/// ```
+///
+/// See ``TLSConfiguration`` for detailed TLS configuration options.
+///
+/// - Note: The server implements RFC 5321 core SMTP with STARTTLS support (RFC 3207).
+///   SMTP AUTH and other extensions are planned for future versions.
 public actor SMTPServer {
     /// Configuration for the SMTP server
     private let configuration: ServerConfiguration

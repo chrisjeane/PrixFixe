@@ -66,9 +66,24 @@ public struct SMTPStateMachine: Sendable {
     private let domain: String
 
     /// Whether TLS is available (configured)
+    ///
+    /// This flag indicates whether a TLS configuration has been provided to the server.
+    /// When true, the STARTTLS command will be advertised in EHLO responses and accepted
+    /// in the greeted state.
+    ///
+    /// - Note: This is set during initialization based on whether `ServerConfiguration`
+    ///   includes a non-nil `tlsConfiguration`.
     public var tlsAvailable: Bool
 
-    /// Whether TLS is currently active
+    /// Whether TLS is currently active on this session
+    ///
+    /// This flag indicates whether the connection has been successfully upgraded to TLS.
+    /// When true:
+    /// - STARTTLS command is rejected (no downgrade allowed)
+    /// - STARTTLS is not advertised in EHLO responses
+    /// - All communication is encrypted
+    ///
+    /// - Note: This is set to true after successful TLS handshake in `handleStartTLS()`.
     public var tlsActive: Bool
 
     /// Initialize the state machine
@@ -142,6 +157,30 @@ public struct SMTPStateMachine: Sendable {
         )
     }
 
+    /// Process EHLO command
+    ///
+    /// Handles the Extended SMTP greeting command, which allows the client to identify
+    /// itself and receive a list of supported server capabilities.
+    ///
+    /// ## Capability Advertisement
+    ///
+    /// The server advertises these capabilities:
+    /// - **STARTTLS**: Only advertised when TLS is configured and not yet active
+    /// - **SIZE**: Maximum message size (10MB default)
+    /// - **8BITMIME**: Support for 8-bit MIME content
+    ///
+    /// ## TLS Behavior
+    ///
+    /// STARTTLS capability advertisement:
+    /// - **Before TLS**: Advertised if `tlsAvailable` is true
+    /// - **After TLS**: Not advertised (TLS already active)
+    /// - **No TLS config**: Not advertised
+    ///
+    /// This ensures clients know when TLS upgrade is available and prevents
+    /// redundant STARTTLS attempts after encryption is active.
+    ///
+    /// - Parameter clientDomain: The domain name provided by the client
+    /// - Returns: Accepted response with capabilities list
     private mutating func processEhlo(clientDomain: String) -> SMTPCommandResult {
         // EHLO can be used in any state except QUIT
         guard state != .quit else {
@@ -267,6 +306,36 @@ public struct SMTPStateMachine: Sendable {
         return .close(response: .closing(domain: domain))
     }
 
+    /// Process STARTTLS command
+    ///
+    /// Validates the STARTTLS command according to RFC 3207 requirements:
+    /// - Only valid after HELO/EHLO (in greeted state)
+    /// - Cannot be used if TLS is already active (no downgrade)
+    /// - Cannot be used if TLS is not configured on the server
+    ///
+    /// ## State Transitions
+    ///
+    /// On success:
+    /// - Returns accepted with "220 Ready to start TLS" response
+    /// - State transitions to `.initial` (resets session)
+    /// - The caller (SMTPSession) must perform the TLS handshake
+    /// - After handshake, `tlsActive` is set to true by the session handler
+    ///
+    /// On rejection:
+    /// - Returns rejected with appropriate error message
+    /// - No state change occurs
+    ///
+    /// ## RFC 3207 Compliance
+    ///
+    /// Per RFC 3207 Section 4:
+    /// - STARTTLS is advertised only when TLS is available and not yet active
+    /// - After successful TLS upgrade, client must send EHLO again
+    /// - Server must discard any prior state information
+    ///
+    /// - Returns: `.accepted` with state reset to `.initial`, or `.rejected` with error
+    ///
+    /// - Important: The actual TLS upgrade is performed by `SMTPSession.handleStartTLS()`,
+    ///   not by this state machine method. This method only validates the command sequence.
     private mutating func processStartTLS() -> SMTPCommandResult {
         // STARTTLS only valid in greeted state (after EHLO/HELO)
         guard state == .greeted else {

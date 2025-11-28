@@ -41,7 +41,14 @@ let package = Package(
         /// Networking abstractions and platform-specific implementations
         .target(
             name: "PrixFixeNetwork",
-            dependencies: ["PrixFixePlatform"]
+            dependencies: [
+                "PrixFixePlatform"
+            ],
+            linkerSettings: [
+                // Link OpenSSL on Linux for TLS support
+                .linkedLibrary("ssl", .when(platforms: [.linux])),
+                .linkedLibrary("crypto", .when(platforms: [.linux]))
+            ]
         ),
 
         /// SMTP protocol implementation (state machine, parser, formatter)

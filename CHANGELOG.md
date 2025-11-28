@@ -7,6 +7,113 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2025-11-28
+
+### Added
+
+#### TLS/STARTTLS Support
+- **STARTTLS Command**: Full RFC 3207 STARTTLS implementation for opportunistic TLS upgrade
+- **TLSConfiguration Structure**: Comprehensive TLS configuration with multiple certificate source options:
+  - File-based certificates (PEM format)
+  - In-memory certificate data with optional password support
+  - Self-signed certificate generation for development
+- **Platform-Native TLS Implementations**:
+  - macOS/iOS: Security.framework integration (native, no dependencies)
+  - Linux: OpenSSL integration (requires libssl-dev)
+- **TLS Protocol Support**: TLS 1.0, 1.1, 1.2, and 1.3 with configurable minimum version
+- **Security Measures**:
+  - Automatic buffer clearance before TLS upgrade (prevents plaintext leakage)
+  - State machine reset after TLS upgrade (requires fresh EHLO)
+  - No TLS downgrade allowed (once active, stays active)
+  - STARTTLS only advertised when appropriate (before TLS activation)
+- **SMTPStateMachine TLS Support**:
+  - `tlsAvailable` flag to track TLS configuration status
+  - `tlsActive` flag to track active TLS connections
+  - STARTTLS command validation and state transitions
+  - Dynamic EHLO capability advertisement based on TLS state
+- **NetworkConnection TLS Protocol**:
+  - `startTLS()` method for connection upgrade
+  - `isTLSActive` property to query encryption status
+  - Platform-specific TLS implementations in FoundationSocket
+- **Comprehensive Testing**: 108 TLS-specific tests covering:
+  - TLSConfiguration validation
+  - STARTTLS state machine transitions
+  - Buffer security during upgrade
+  - Platform-specific TLS implementations
+  - Error handling and edge cases
+  - Integration tests for complete STARTTLS flow
+
+#### Documentation
+- **TLS Guide** (`docs/TLS-GUIDE.md`): Comprehensive 600+ line guide covering:
+  - Certificate requirements and generation
+  - Configuration options with examples
+  - Platform differences (macOS vs Linux)
+  - Security considerations and best practices
+  - Troubleshooting common TLS issues
+  - Production and development examples
+- **Enhanced README**: Added TLS/STARTTLS sections with:
+  - Quick start example with TLS configuration
+  - Platform requirements (OpenSSL on Linux)
+  - Updated feature list and status
+  - TLS-specific installation instructions
+- **DocC Enhancements**: Added comprehensive documentation to:
+  - `TLSConfiguration` with usage examples
+  - `NetworkConnection.startTLS()` with security notes
+  - `SMTPSession.handleStartTLS()` with implementation details
+  - `SMTPStateMachine.processStartTLS()` with RFC compliance notes
+  - `SMTPStateMachine.processEhlo()` with capability advertisement logic
+
+### Changed
+
+#### API Updates
+- **ServerConfiguration**: Added `tlsConfiguration: TLSConfiguration?` parameter
+- **SessionConfiguration**: Added `tlsConfiguration: TLSConfiguration?` parameter
+- **SMTPStateMachine**: Added `tlsAvailable` and `tlsActive` properties for TLS state tracking
+- **EHLO Response**: Now dynamically includes/excludes STARTTLS based on TLS state
+- **Package.swift**: Added OpenSSL linking for Linux platform (`libssl` and `libcrypto`)
+
+#### Implementation Changes
+- **SMTPSession**: Enhanced with TLS upgrade logic and buffer security measures
+- **FoundationSocket**: Added platform-specific TLS implementations:
+  - `startTLS_Darwin()` for macOS/iOS using Security.framework
+  - `startTLS_Linux()` for Linux using OpenSSL C bindings
+- **SMTPCommand**: Added `.startTLS` case to command enumeration
+- **SMTPCommandParser**: Added STARTTLS command parsing
+
+### Security
+
+#### TLS Security Measures
+- **Buffer Clearance**: Automatic clearance of read-ahead buffers before TLS upgrade prevents plaintext leakage
+- **State Reset**: SMTP state machine resets after TLS upgrade, requiring fresh authentication
+- **No Downgrade**: Once TLS is active, it cannot be downgraded to plaintext
+- **Certificate Validation**: Platform-native certificate validation via Security.framework (macOS/iOS) and OpenSSL (Linux)
+- **Configurable TLS Versions**: Support for enforcing minimum TLS version (1.2+ recommended)
+- **Secure Defaults**: TLS 1.2 minimum by default, platform-selected secure cipher suites
+
+### Platform Support
+
+#### Linux Requirements
+- **OpenSSL Development Libraries**: Required for TLS support
+  - Ubuntu/Debian: `libssl-dev`
+  - Fedora/RHEL: `openssl-devel`
+  - Alpine: `openssl-dev`
+- **Automatic Linking**: Package.swift automatically links OpenSSL on Linux platforms
+
+#### macOS/iOS
+- **No Additional Dependencies**: Uses system-provided Security.framework
+- **Native Integration**: Full platform integration with macOS/iOS security infrastructure
+
+### Fixed
+- N/A (new feature release)
+
+### Deprecated
+- N/A (no deprecations in this release)
+
+### Removed
+- N/A (no removals in this release)
+
+---
+
 ## [0.1.0] - 2025-11-27
 
 ### Added
@@ -119,9 +226,67 @@ See the [README](README.md) for full documentation and examples.
 
 ---
 
+## Release Notes
+
+### v0.2.0 - STARTTLS/TLS Support
+
+PrixFixe 0.2.0 adds complete STARTTLS/TLS encryption support with platform-native implementations. This major feature release provides production-ready TLS capabilities while maintaining backward compatibility with v0.1.0 configurations.
+
+#### Highlights
+- RFC 3207 STARTTLS implementation with state machine integration
+- Platform-native TLS: Security.framework (macOS/iOS), OpenSSL (Linux)
+- Flexible certificate configuration (file, data, self-signed)
+- TLS 1.2/1.3 support with configurable minimum version
+- Critical security measures: buffer clearance, state reset, no downgrade
+- 108 comprehensive TLS tests
+- Extensive documentation with TLS guide
+
+#### Migration from v0.1.0
+
+Existing v0.1.0 configurations continue to work without changes. To enable TLS:
+
+```swift
+// Add TLS configuration to your existing ServerConfiguration
+let tlsConfig = TLSConfiguration(
+    certificateSource: .file(
+        certificatePath: "/path/to/cert.pem",
+        privateKeyPath: "/path/to/key.pem"
+    )
+)
+
+let config = ServerConfiguration(
+    domain: "mail.example.com",
+    port: 587,
+    tlsConfiguration: tlsConfig  // Add this parameter
+)
+```
+
+#### Breaking Changes
+- None - v0.2.0 is backward compatible with v0.1.0
+
+#### Known Limitations
+- Client certificate validation (mutual TLS) not yet implemented
+- Custom cipher suite support is platform-specific
+
+#### Platform Requirements
+- **Linux**: Requires OpenSSL development libraries (`libssl-dev`)
+- **macOS/iOS**: No additional dependencies (uses system Security.framework)
+
+See [docs/TLS-GUIDE.md](docs/TLS-GUIDE.md) for complete TLS configuration documentation.
+
+---
+
+### v0.1.0 - Initial Release
+
+See v0.1.0 release notes below for details on the initial release.
+
+---
+
 ## Version History
 
+- **0.2.0** (2025-11-28): STARTTLS/TLS encryption support with platform-native implementations
 - **0.1.0** (2025-11-27): Initial release with RFC 5321 core compliance and multi-platform support
 
-[Unreleased]: https://github.com/yourusername/PrixFixe/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/yourusername/PrixFixe/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/yourusername/PrixFixe/releases/tag/v0.2.0
 [0.1.0]: https://github.com/yourusername/PrixFixe/releases/tag/v0.1.0
