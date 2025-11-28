@@ -96,8 +96,14 @@ public actor SMTPSession {
                 // Message size limit exceeded - error already sent
                 break
             case .commandTooLong:
-                // Command line too long - send error
-                try? await sendResponse(.syntaxError("Command too long"))
+                // Command line too long (512 bytes) - send error
+                try? await sendResponse(.syntaxError("Command too long (max 512 bytes)"))
+            case .dataLineTooLong:
+                // Text line too long (998 bytes) during DATA phase - send error
+                try? await sendResponse(.syntaxError("Line too long (max 998 bytes)"))
+            case .bufferOverflow:
+                // Buffer overflow - possible attack, close connection
+                try? await sendResponse(.serviceNotAvailable("Buffer overflow"))
             case .invalidEncoding:
                 // Invalid UTF-8 encoding - send error
                 try? await sendResponse(.syntaxError("Invalid character encoding"))
@@ -155,7 +161,7 @@ public actor SMTPSession {
         // Read until we see <CRLF>.<CRLF>
         // Use RFC 5321 text line limit (998) instead of command limit (512)
         while true {
-            guard let line = try await readLine(maxLength: Self.maxTextLineLength) else {
+            guard let line = try await readLine(maxLength: Self.maxTextLineLength, isDataPhase: true) else {
                 throw SMTPError.connectionClosed
             }
 
@@ -222,10 +228,17 @@ public actor SMTPSession {
     /// This applies to message body lines during DATA phase
     private static let maxTextLineLength = 998
 
+    /// Safety multiplier for buffer upper bound
+    /// Allows multiple complete lines to be buffered while preventing DoS
+    private static let bufferSafetyMultiplier = 3
+
     /// Read a line from the connection (terminated by CRLF)
-    /// - Parameter maxLength: Maximum allowed line length (defaults to command length limit)
-    private func readLine(maxLength: Int? = nil) async throws -> String? {
+    /// - Parameters:
+    ///   - maxLength: Maximum allowed line length (defaults to command length limit)
+    ///   - isDataPhase: Whether we're reading message data (affects error type)
+    private func readLine(maxLength: Int? = nil, isDataPhase: Bool = false) async throws -> String? {
         let limit = maxLength ?? configuration.maxCommandLength
+        let bufferLimit = limit * Self.bufferSafetyMultiplier
 
         // Read until we find CRLF in the buffer
         while true {
@@ -236,7 +249,7 @@ public actor SMTPSession {
 
                 // Check line length before accepting
                 if lineData.count > limit {
-                    throw SMTPError.commandTooLong
+                    throw isDataPhase ? SMTPError.dataLineTooLong : SMTPError.commandTooLong
                 }
 
                 // Keep the remaining data after CRLF
@@ -258,7 +271,7 @@ public actor SMTPSession {
             // This prevents unbounded buffer growth while allowing multiple
             // complete lines to be buffered
             if readAheadBuffer.count > limit {
-                throw SMTPError.commandTooLong
+                throw isDataPhase ? SMTPError.dataLineTooLong : SMTPError.commandTooLong
             }
 
             // Read more data
@@ -279,6 +292,12 @@ public actor SMTPSession {
             }
 
             readAheadBuffer.append(chunk)
+
+            // Safety check: prevent unbounded growth even with multiple buffered lines
+            // This protects against malformed clients or attacks
+            if readAheadBuffer.count > bufferLimit {
+                throw SMTPError.bufferOverflow
+            }
         }
     }
 
@@ -381,8 +400,14 @@ public enum SMTPError: Error, CustomStringConvertible {
     /// The SMTP connection was closed unexpectedly
     case connectionClosed
 
-    /// An SMTP command exceeded the maximum allowed length
+    /// An SMTP command exceeded the maximum allowed length (512 bytes per RFC 5321)
     case commandTooLong
+
+    /// A text line in DATA phase exceeded the maximum allowed length (998 bytes per RFC 5321)
+    case dataLineTooLong
+
+    /// Read buffer overflow - possible attack or malformed client
+    case bufferOverflow
 
     /// Invalid character encoding was encountered in SMTP data
     case invalidEncoding
@@ -402,7 +427,11 @@ public enum SMTPError: Error, CustomStringConvertible {
         case .connectionClosed:
             return "SMTP connection closed unexpectedly"
         case .commandTooLong:
-            return "SMTP command exceeds maximum length"
+            return "SMTP command exceeds maximum length (512 bytes)"
+        case .dataLineTooLong:
+            return "Text line exceeds maximum length (998 bytes)"
+        case .bufferOverflow:
+            return "Read buffer overflow"
         case .invalidEncoding:
             return "Invalid character encoding in SMTP data"
         case .messageTooLarge:
