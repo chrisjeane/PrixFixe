@@ -13,6 +13,10 @@ private let posixWrite = Darwin.write
 private let posixBind = Darwin.bind
 private let posixListen = Darwin.listen
 private let posixAccept = Darwin.accept
+// Socket type constants
+private let PLATFORM_SOCK_STREAM = SOCK_STREAM
+private let PLATFORM_IPPROTO_TCP = IPPROTO_TCP
+private let PLATFORM_IPPROTO_IPV6 = IPPROTO_IPV6
 #elseif canImport(Glibc)
 import Glibc
 private let posixClose = Glibc.close
@@ -21,6 +25,10 @@ private let posixWrite = Glibc.write
 private let posixBind = Glibc.bind
 private let posixListen = Glibc.listen
 private let posixAccept = Glibc.accept
+// Socket type constants - Linux uses different types that need Int32 conversion
+private let PLATFORM_SOCK_STREAM = Int32(SOCK_STREAM.rawValue)
+private let PLATFORM_IPPROTO_TCP = Int32(IPPROTO_TCP)
+private let PLATFORM_IPPROTO_IPV6 = Int32(IPPROTO_IPV6)
 #else
 #error("Unsupported platform - requires Darwin or Glibc")
 #endif
@@ -51,7 +59,7 @@ public final class FoundationSocket: NetworkTransport, @unchecked Sendable {
     public func bind(to address: SocketAddress) async throws {
         try lock.withLock {
             // Create IPv6 socket
-            let fd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP)
+            let fd = socket(AF_INET6, PLATFORM_SOCK_STREAM, PLATFORM_IPPROTO_TCP)
             guard fd >= 0 else {
                 throw NetworkError.bindFailed("Failed to create socket: \(String(cString: strerror(errno)))")
             }
@@ -126,7 +134,7 @@ public final class FoundationSocket: NetworkTransport, @unchecked Sendable {
 
         // Allow dual-stack (IPv6 socket can accept IPv4-mapped connections)
         var ipv6Only: Int32 = 0
-        let ipv6Result = setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &ipv6Only, socklen_t(MemoryLayout<Int32>.size))
+        let ipv6Result = setsockopt(fd, PLATFORM_IPPROTO_IPV6, IPV6_V6ONLY, &ipv6Only, socklen_t(MemoryLayout<Int32>.size))
         guard ipv6Result == 0 else {
             throw NetworkError.bindFailed("Failed to set IPV6_V6ONLY: \(String(cString: strerror(errno)))")
         }

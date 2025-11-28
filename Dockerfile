@@ -15,32 +15,36 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /build
 
 # Copy package manifest first for dependency caching
-COPY Package.swift Package.resolved ./
+COPY Package.swift ./
 
 # Copy source code
 COPY Sources ./Sources
+
+# Copy Tests directory structure (swift files excluded via .dockerignore)
+# This is needed because Package.swift references test targets
 COPY Tests ./Tests
 
 # Copy Examples
 COPY Examples ./Examples
 
-# Build the SimpleServer example in release mode
-# We build the entire package first to ensure all dependencies are resolved
-RUN swift build -c release
+# Build the main library in release mode (test targets will be skipped - no source files)
+RUN swift build -c release --target PrixFixe
 
-# Build SimpleServer specifically
+# Build SimpleServer - it references the parent package
 WORKDIR /build/Examples/SimpleServer
-RUN swift build -c release --package-path /build/Examples/SimpleServer
+RUN swift build -c release
 
 # ============================================================================
 # Stage 2: Runtime
 # ============================================================================
-FROM ubuntu:22.04
+# Use Swift slim runtime which includes necessary Swift runtime libraries
+FROM swift:6.0-jammy-slim
 
 # Install runtime dependencies only
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     libsqlite3-0 \
+    procps \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 

@@ -28,8 +28,8 @@ Documentation/
 .gitlab-ci.yml
 .travis.yml
 
-# Test files
-Tests/
+# Test files - include directory structure but exclude test source files
+Tests/**/*.swift
 
 # Plan and project management
 .plan/

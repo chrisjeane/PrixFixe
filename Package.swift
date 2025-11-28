@@ -32,7 +32,6 @@ let package = Package(
                 "PrixFixePlatform"
             ],
             swiftSettings: [
-                .enableUpcomingFeature("StrictConcurrency"),
                 .enableExperimentalFeature("AccessLevelOnImport")
             ]
         ),
@@ -42,10 +41,7 @@ let package = Package(
         /// Networking abstractions and platform-specific implementations
         .target(
             name: "PrixFixeNetwork",
-            dependencies: ["PrixFixePlatform"],
-            swiftSettings: [
-                .enableUpcomingFeature("StrictConcurrency")
-            ]
+            dependencies: ["PrixFixePlatform"]
         ),
 
         /// SMTP protocol implementation (state machine, parser, formatter)
@@ -54,28 +50,19 @@ let package = Package(
             dependencies: [
                 "PrixFixeNetwork",
                 "PrixFixeMessage"
-            ],
-            swiftSettings: [
-                .enableUpcomingFeature("StrictConcurrency")
             ]
         ),
 
         /// Message handling and email structure
         .target(
             name: "PrixFixeMessage",
-            dependencies: [],
-            swiftSettings: [
-                .enableUpcomingFeature("StrictConcurrency")
-            ]
+            dependencies: []
         ),
 
         /// Platform detection and capabilities
         .target(
             name: "PrixFixePlatform",
-            dependencies: [],
-            swiftSettings: [
-                .enableUpcomingFeature("StrictConcurrency")
-            ]
+            dependencies: []
         ),
 
         // MARK: - Test Targets
