@@ -153,8 +153,9 @@ public actor SMTPSession {
         var totalBytes = 0
 
         // Read until we see <CRLF>.<CRLF>
+        // Use RFC 5321 text line limit (998) instead of command limit (512)
         while true {
-            guard let line = try await readLine() else {
+            guard let line = try await readLine(maxLength: Self.maxTextLineLength) else {
                 throw SMTPError.connectionClosed
             }
 
@@ -217,14 +218,26 @@ public actor SMTPSession {
     /// Buffered read state
     private var readAheadBuffer = Data()
 
+    /// Maximum text line length per RFC 5321 Section 4.5.3.1.6
+    /// This applies to message body lines during DATA phase
+    private static let maxTextLineLength = 998
+
     /// Read a line from the connection (terminated by CRLF)
-    private func readLine() async throws -> String? {
+    /// - Parameter maxLength: Maximum allowed line length (defaults to command length limit)
+    private func readLine(maxLength: Int? = nil) async throws -> String? {
+        let limit = maxLength ?? configuration.maxCommandLength
+
         // Read until we find CRLF in the buffer
         while true {
             // Search for CRLF in current buffer
             if let crlfRange = readAheadBuffer.range(of: Data([0x0D, 0x0A])) {
                 // Found CRLF - extract the line
                 let lineData = readAheadBuffer[..<crlfRange.lowerBound]
+
+                // Check line length before accepting
+                if lineData.count > limit {
+                    throw SMTPError.commandTooLong
+                }
 
                 // Keep the remaining data after CRLF
                 if crlfRange.upperBound < readAheadBuffer.count {
@@ -241,7 +254,14 @@ public actor SMTPSession {
                 return line
             }
 
-            // No CRLF yet - read more data
+            // No CRLF yet - check if the incomplete line is already too long
+            // This prevents unbounded buffer growth while allowing multiple
+            // complete lines to be buffered
+            if readAheadBuffer.count > limit {
+                throw SMTPError.commandTooLong
+            }
+
+            // Read more data
             let chunk = try await connection.read(maxBytes: 1024)
 
             guard !chunk.isEmpty else {
@@ -259,11 +279,6 @@ public actor SMTPSession {
             }
 
             readAheadBuffer.append(chunk)
-
-            // Prevent unbounded growth
-            if readAheadBuffer.count > configuration.maxCommandLength {
-                throw SMTPError.commandTooLong
-            }
         }
     }
 
