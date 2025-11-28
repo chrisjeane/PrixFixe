@@ -59,6 +59,11 @@ The build process uses a multi-stage Dockerfile:
 - **Stage 1 (Builder)**: Compiles Swift code on Ubuntu 22.04 with Swift 6.0
 - **Stage 2 (Runtime)**: Creates minimal runtime image (~180MB)
 
+Platform Support:
+- **Linux/Docker**: Uses POSIX BSD sockets (FoundationSocket) with blocking I/O
+- **macOS**: Uses Network.framework (NetworkFrameworkSocket) for optimal performance
+- **Cross-Platform**: Automatic transport selection via SocketFactory
+
 ### Running the Container
 
 ```bash
@@ -647,6 +652,75 @@ docker logs --tail 100 prixfixe-smtp
 ```
 
 ## Advanced Topics
+
+### Platform-Specific I/O Architecture
+
+PrixFixe implements a dual-transport architecture for optimal cross-platform performance:
+
+#### Transport Implementations
+
+1. **FoundationSocket** (Linux, Docker, macOS fallback)
+   - Uses POSIX BSD socket APIs directly
+   - Blocking I/O with `Task.detached` to avoid cooperative pool exhaustion
+   - Full IPv6-first networking with IPv4-mapped address support
+   - Platform-specific socket constants for Darwin and Glibc compatibility
+
+2. **NetworkFrameworkSocket** (macOS preferred)
+   - Uses Apple's Network.framework for modern async I/O
+   - Native async/await integration
+   - Optimal performance on macOS 13.0+
+   - Automatic fallback on macOS 26.1 beta due to OS bug
+
+#### Platform Detection
+
+The `SocketFactory` automatically selects the appropriate transport:
+
+```swift
+// Automatically selects best transport for platform
+let transport = SocketFactory.createTransport()
+// Linux/Docker: FoundationSocket
+// macOS stable: NetworkFrameworkSocket
+// macOS 26.1 beta: FoundationSocket (workaround)
+```
+
+#### Recent Compatibility Fixes
+
+**Linux/Docker Support** (v0.1.0):
+- Platform-specific socket constants (SOCK_STREAM, IPPROTO_TCP, IPPROTO_IPV6)
+- Zone ID handling compatibility between Darwin and Glibc
+- Switched to blocking I/O with proper async wrapping
+- Full SMTP protocol functionality verified in Docker containers
+
+**macOS 26.1 Beta Workaround**:
+- Automatic detection of NWListener binding bug
+- Transparent fallback to FoundationSocket
+- Zero code changes required in applications
+- See MACOS-BETA-WORKAROUND.md for details
+
+#### I/O Model
+
+The current implementation uses blocking I/O wrapped in async contexts:
+
+```swift
+// Blocking read wrapped for async/await compatibility
+return try await Task.detached {
+    var buffer = [UInt8](repeating: 0, count: maxBytes)
+    let bytesRead = posixRead(fd, &buffer, maxBytes)
+    // Process result...
+}.value
+```
+
+**Rationale**:
+- Simple and reliable implementation
+- Works correctly across all platforms
+- Suitable for moderate concurrency (100+ connections)
+- Future enhancement: true async I/O with kqueue/epoll (planned for v0.2.0)
+
+**Performance Characteristics**:
+- Handles 100+ concurrent connections reliably
+- Each connection gets a dedicated task
+- Thread pool managed by Swift concurrency runtime
+- Minimal overhead for typical SMTP workloads
 
 ### Building for Multiple Architectures
 

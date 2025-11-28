@@ -63,6 +63,8 @@ Multi-stage build optimized for size and security:
 - **Runtime stage**: Minimal Ubuntu base
 - **Final size**: ~180MB
 - **Security**: Runs as non-root user (UID 1000)
+- **Networking**: POSIX BSD sockets with blocking I/O wrapped in async tasks
+- **Compatibility**: Fully tested on Linux (Ubuntu, Debian, Alpine), Docker, and macOS
 
 ### docker-compose.yml
 
@@ -252,25 +254,21 @@ Test message
 QUIT
 ```
 
-Using netcat:
+Using netcat with proper CRLF line endings (per RFC 5321):
 ```bash
-{
-  echo "EHLO test.example.com"
-  sleep 1
-  echo "MAIL FROM:<sender@example.com>"
-  sleep 1
-  echo "RCPT TO:<recipient@example.com>"
-  sleep 1
-  echo "DATA"
-  sleep 1
-  echo "Subject: Test"
-  echo ""
-  echo "Test message"
-  echo "."
-  sleep 1
-  echo "QUIT"
-} | nc localhost 2525
+# SMTP requires CRLF (\r\n) line terminators
+printf "EHLO test.example.com\r\n" | nc localhost 2525
+printf "MAIL FROM:<sender@example.com>\r\n" | nc localhost 2525
+printf "RCPT TO:<recipient@example.com>\r\n" | nc localhost 2525
+printf "DATA\r\n" | nc localhost 2525
+printf "Subject: Test\r\n\r\nTest message\r\n.\r\n" | nc localhost 2525
+printf "QUIT\r\n" | nc localhost 2525
+
+# Or all at once:
+printf "EHLO test\r\nMAIL FROM:<sender@test.com>\r\nRCPT TO:<dest@test.com>\r\nDATA\r\nSubject: Test\r\n\r\nTest body\r\n.\r\nQUIT\r\n" | nc localhost 2525
 ```
+
+Note: SMTP protocol requires CRLF (\\r\\n) line endings, not just LF (\\n). Using plain echo or newlines will result in protocol errors.
 
 ## Monitoring
 

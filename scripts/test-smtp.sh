@@ -32,6 +32,14 @@ log_test() {
     echo -e "${BLUE}[TEST]${NC} $1"
 }
 
+log_success() {
+    echo -e "${GREEN}✓${NC} $1"
+}
+
+log_failure() {
+    echo -e "${RED}✗${NC} $1"
+}
+
 # Check if netcat is available
 if ! command -v nc &> /dev/null; then
     log_error "netcat (nc) is not installed. Please install it first."
@@ -41,87 +49,118 @@ fi
 log_info "Testing SMTP server at ${SMTP_HOST}:${SMTP_PORT}"
 log_info ""
 
-# Function to send SMTP commands
+# Function to send SMTP commands and capture output
 send_smtp_test() {
-    log_test "Starting SMTP conversation..."
-
-    {
-        sleep 1
-        echo "EHLO test.example.com"
-        sleep 1
-        echo "MAIL FROM:<sender@example.com>"
-        sleep 1
-        echo "RCPT TO:<recipient@example.com>"
-        sleep 1
-        echo "DATA"
-        sleep 1
-        echo "From: sender@example.com"
-        echo "To: recipient@example.com"
-        echo "Subject: Test Message from PrixFixe Test Script"
-        echo ""
-        echo "This is a test message sent to verify PrixFixe SMTP server functionality."
-        echo "."
-        sleep 1
-        echo "QUIT"
-        sleep 1
-    } | nc -v "${SMTP_HOST}" "${SMTP_PORT}" 2>&1
+    # SMTP requires CRLF line endings per RFC 5321
+    # Use printf to ensure proper CRLF (\r\n) line terminators
+    printf "EHLO test.example.com\r\n"
+    printf "MAIL FROM:<sender@example.com>\r\n"
+    printf "RCPT TO:<recipient@example.com>\r\n"
+    printf "DATA\r\n"
+    printf "From: sender@example.com\r\n"
+    printf "To: recipient@example.com\r\n"
+    printf "Subject: Test Message from PrixFixe Test Script\r\n"
+    printf "\r\n"
+    printf "This is a test message sent to verify PrixFixe SMTP server functionality.\r\n"
+    printf "Timestamp: $(date)\r\n"
+    printf ".\r\n"
+    printf "QUIT\r\n"
 }
 
 # Run the test
-log_info "Connecting to SMTP server..."
-log_info ""
+log_test "Connecting to SMTP server and running full SMTP conversation..."
+echo ""
 
-if result=$(send_smtp_test); then
-    echo "$result"
-    echo ""
+result=$(send_smtp_test | nc "${SMTP_HOST}" "${SMTP_PORT}" 2>&1)
 
-    # Check for successful responses
-    if echo "$result" | grep -q "220.*ESMTP"; then
-        log_info "✓ Server greeting received"
-    else
-        log_warn "✗ No server greeting detected"
-    fi
+# Display the full SMTP conversation
+echo "────────────────────────────────────────────────────────────────"
+echo "$result"
+echo "────────────────────────────────────────────────────────────────"
+echo ""
 
-    if echo "$result" | grep -q "250.*Hello"; then
-        log_info "✓ EHLO command succeeded"
-    else
-        log_warn "✗ EHLO command failed"
-    fi
+# Initialize test result counters
+TESTS_PASSED=0
+TESTS_FAILED=0
 
-    if echo "$result" | grep -q "250.*Sender.*OK"; then
-        log_info "✓ MAIL FROM command succeeded"
-    else
-        log_warn "✗ MAIL FROM command failed"
-    fi
+# Check for successful responses with better patterns
+log_info "Validating SMTP responses..."
+echo ""
 
-    if echo "$result" | grep -q "250.*Recipient.*OK"; then
-        log_info "✓ RCPT TO command succeeded"
-    else
-        log_warn "✗ RCPT TO command failed"
-    fi
-
-    if echo "$result" | grep -q "354.*Start mail input"; then
-        log_info "✓ DATA command succeeded"
-    else
-        log_warn "✗ DATA command failed"
-    fi
-
-    if echo "$result" | grep -q "250.*Message accepted"; then
-        log_info "✓ Message accepted"
-    else
-        log_warn "✗ Message not accepted"
-    fi
-
-    if echo "$result" | grep -q "221.*closing connection"; then
-        log_info "✓ Connection closed gracefully"
-    else
-        log_warn "✗ Connection not closed properly"
-    fi
-
-    echo ""
-    log_info "SMTP test completed!"
+# 1. Server greeting
+if echo "$result" | grep -q "220.*ESMTP"; then
+    log_success "Server greeting (220 ESMTP)"
+    ((TESTS_PASSED++))
 else
-    log_error "Failed to connect to SMTP server"
-    log_error "Make sure the server is running and accessible at ${SMTP_HOST}:${SMTP_PORT}"
+    log_failure "Server greeting not received"
+    ((TESTS_FAILED++))
+fi
+
+# 2. EHLO response
+if echo "$result" | grep -q "250.*Hello"; then
+    log_success "EHLO command accepted (250 Hello)"
+    ((TESTS_PASSED++))
+else
+    log_failure "EHLO command failed"
+    ((TESTS_FAILED++))
+fi
+
+# 3. MAIL FROM response
+if echo "$result" | grep -q "250.*Sender"; then
+    log_success "MAIL FROM accepted (250 Sender OK)"
+    ((TESTS_PASSED++))
+else
+    log_failure "MAIL FROM command failed"
+    ((TESTS_FAILED++))
+fi
+
+# 4. RCPT TO response
+if echo "$result" | grep -q "250.*Recipient"; then
+    log_success "RCPT TO accepted (250 Recipient OK)"
+    ((TESTS_PASSED++))
+else
+    log_failure "RCPT TO command failed"
+    ((TESTS_FAILED++))
+fi
+
+# 5. DATA start response
+if echo "$result" | grep -q "354.*Start mail input"; then
+    log_success "DATA command accepted (354 Start mail input)"
+    ((TESTS_PASSED++))
+else
+    log_failure "DATA command failed"
+    ((TESTS_FAILED++))
+fi
+
+# 6. Message accepted response
+if echo "$result" | grep -q "250.*Message accepted"; then
+    log_success "Message accepted (250 Message accepted)"
+    ((TESTS_PASSED++))
+else
+    log_failure "Message not accepted"
+    ((TESTS_FAILED++))
+fi
+
+# 7. QUIT response
+if echo "$result" | grep -q "221.*closing connection"; then
+    log_success "Connection closed gracefully (221 Bye)"
+    ((TESTS_PASSED++))
+else
+    log_failure "Connection not closed properly"
+    ((TESTS_FAILED++))
+fi
+
+# Print summary
+echo ""
+echo "────────────────────────────────────────────────────────────────"
+if [ $TESTS_FAILED -eq 0 ]; then
+    log_info "Test Results: ${GREEN}ALL TESTS PASSED${NC} (${TESTS_PASSED}/${TESTS_PASSED})"
+    log_info ""
+    log_info "PrixFixe SMTP server is functioning correctly!"
+    exit 0
+else
+    log_warn "Test Results: ${TESTS_PASSED} passed, ${RED}${TESTS_FAILED} failed${NC}"
+    log_warn ""
+    log_warn "Some tests failed. Check the SMTP conversation output above."
     exit 1
 fi
