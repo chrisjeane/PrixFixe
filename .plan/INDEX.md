@@ -12,6 +12,15 @@
 - [Progress Report](PROGRESS-REPORT.md) - Comprehensive status review (2025-11-27)
 - [Work Items](work-items.md) - Prioritized action items and sprint planning
 - [Issues & Findings](issues.md) - Detailed issue tracking and resolutions
+- [Next Phase Issues](NEXT_PHASE_ISSUES.md) - v0.2.0 roadmap and outstanding issues (NEW - 2025-11-27)
+- [Organization Summary](ORGANIZATION-SUMMARY.md) - Planning directory structure and reorganization (NEW - 2025-11-27)
+
+### Reports & Summaries
+- [Phase 4 Implementation Report](reports/IMPLEMENTATION-REPORT.md) - Production readiness phase completion
+- [Phase 4 Summary](reports/PHASE-4-SUMMARY.md) - Deliverables and status overview
+
+### Integration & Documentation
+- [Integration Guide](INTEGRATION.md) - Comprehensive guide for embedding PrixFixe in applications
 
 ### Architecture & Design
 - [Architecture Overview](architecture/2025-11-27-system-architecture.md) - System design and technical approach
