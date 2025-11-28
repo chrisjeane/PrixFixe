@@ -139,16 +139,9 @@ public final class FoundationSocket: NetworkTransport, @unchecked Sendable {
             throw NetworkError.bindFailed("Failed to set IPV6_V6ONLY: \(String(cString: strerror(errno)))")
         }
 
-        // Set non-blocking mode (for future async I/O)
-        let flags = fcntl(fd, F_GETFL, 0)
-        guard flags >= 0 else {
-            throw NetworkError.bindFailed("Failed to get socket flags: \(String(cString: strerror(errno)))")
-        }
-
-        let setResult = fcntl(fd, F_SETFL, flags | O_NONBLOCK)
-        guard setResult >= 0 else {
-            throw NetworkError.bindFailed("Failed to set non-blocking: \(String(cString: strerror(errno)))")
-        }
+        // Note: Using blocking I/O with detached tasks for simplicity
+        // This works well for embedded SMTP servers with moderate connection counts
+        // Non-blocking I/O would be more efficient for high-volume servers but adds complexity
     }
 
     private func bindSocket(_ fd: Int32, to address: SocketAddress) throws {
@@ -227,17 +220,11 @@ public final class FoundationConnection: NetworkConnection, @unchecked Sendable 
         // The blocking read() call runs on a thread pool managed by the global concurrent executor
         return try await Task.detached {
             var buffer = [UInt8](repeating: 0, count: maxBytes)
-
             let bytesRead = posixRead(fd, &buffer, maxBytes)
 
             if bytesRead < 0 {
                 let err = errno
-                if err == EAGAIN || err == EWOULDBLOCK {
-                    // Non-blocking socket would block - return empty data to retry
-                    return Data()
-                } else {
-                    throw NetworkError.readFailed("read() failed: \(String(cString: strerror(err)))")
-                }
+                throw NetworkError.readFailed("read() failed: \(String(cString: strerror(err)))")
             } else if bytesRead == 0 {
                 // Connection closed
                 throw NetworkError.connectionClosed
@@ -253,12 +240,10 @@ public final class FoundationConnection: NetworkConnection, @unchecked Sendable 
         }
 
         // Use detached task to avoid blocking cooperative thread pool
-        // Implements retry logic for partial writes
+        // Handles partial writes by looping until all data is sent
         try await Task.detached {
             var remainingData = data
             var totalWritten = 0
-            let maxRetries = 10
-            var retryCount = 0
 
             while totalWritten < data.count {
                 let bytesWritten = remainingData.withUnsafeBytes { bufferPtr in
@@ -267,18 +252,7 @@ public final class FoundationConnection: NetworkConnection, @unchecked Sendable 
 
                 if bytesWritten < 0 {
                     let err = errno
-                    if err == EAGAIN || err == EWOULDBLOCK {
-                        // Non-blocking socket would block - retry after brief delay
-                        retryCount += 1
-                        if retryCount > maxRetries {
-                            throw NetworkError.writeFailed("write() exceeded max retries (EAGAIN)")
-                        }
-                        // Brief sleep to avoid tight loop
-                        try await Task.sleep(nanoseconds: 1_000_000) // 1ms
-                        continue
-                    } else {
-                        throw NetworkError.writeFailed("write() failed: \(String(cString: strerror(err)))")
-                    }
+                    throw NetworkError.writeFailed("write() failed: \(String(cString: strerror(err)))")
                 } else if bytesWritten == 0 {
                     // No bytes written - socket may be closed
                     throw NetworkError.writeFailed("write() returned 0 bytes")
@@ -288,7 +262,6 @@ public final class FoundationConnection: NetworkConnection, @unchecked Sendable 
                     if totalWritten < data.count {
                         // Partial write - continue with remaining data
                         remainingData = remainingData.advanced(by: bytesWritten)
-                        retryCount = 0 // Reset retry count on successful write
                     }
                 }
             }
