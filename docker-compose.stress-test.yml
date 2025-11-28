@@ -1,0 +1,321 @@
+version: '3.8'
+
+# PrixFixe SMTP Server - Stress Test Configuration
+# This compose file deploys multiple SMTP servers and a load generator
+# for comprehensive stress testing
+
+services:
+  # ============================================================================
+  # SMTP Server Instances
+  # ============================================================================
+
+  # SMTP Server 1
+  smtp-server-1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: prixfixe-smtp:latest
+    container_name: prixfixe-smtp-1
+    hostname: smtp1.test.local
+    restart: unless-stopped
+
+    environment:
+      SMTP_DOMAIN: smtp1.test.local
+      SMTP_PORT: 2525
+      SMTP_MAX_CONNECTIONS: 100
+      SMTP_MAX_MESSAGE_SIZE: 10485760
+
+    volumes:
+      - smtp1-data:/var/mail
+      - ./stress-test/results/server1-logs:/var/log/prixfixe
+
+    networks:
+      stress-test-net:
+        ipv4_address: 172.25.0.11
+
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "prixfixe-server"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # SMTP Server 2
+  smtp-server-2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: prixfixe-smtp:latest
+    container_name: prixfixe-smtp-2
+    hostname: smtp2.test.local
+    restart: unless-stopped
+
+    environment:
+      SMTP_DOMAIN: smtp2.test.local
+      SMTP_PORT: 2525
+      SMTP_MAX_CONNECTIONS: 100
+      SMTP_MAX_MESSAGE_SIZE: 10485760
+
+    volumes:
+      - smtp2-data:/var/mail
+      - ./stress-test/results/server2-logs:/var/log/prixfixe
+
+    networks:
+      stress-test-net:
+        ipv4_address: 172.25.0.12
+
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "prixfixe-server"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # SMTP Server 3
+  smtp-server-3:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: prixfixe-smtp:latest
+    container_name: prixfixe-smtp-3
+    hostname: smtp3.test.local
+    restart: unless-stopped
+
+    environment:
+      SMTP_DOMAIN: smtp3.test.local
+      SMTP_PORT: 2525
+      SMTP_MAX_CONNECTIONS: 100
+      SMTP_MAX_MESSAGE_SIZE: 10485760
+
+    volumes:
+      - smtp3-data:/var/mail
+      - ./stress-test/results/server3-logs:/var/log/prixfixe
+
+    networks:
+      stress-test-net:
+        ipv4_address: 172.25.0.13
+
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "prixfixe-server"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # SMTP Server 4
+  smtp-server-4:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: prixfixe-smtp:latest
+    container_name: prixfixe-smtp-4
+    hostname: smtp4.test.local
+    restart: unless-stopped
+
+    environment:
+      SMTP_DOMAIN: smtp4.test.local
+      SMTP_PORT: 2525
+      SMTP_MAX_CONNECTIONS: 100
+      SMTP_MAX_MESSAGE_SIZE: 10485760
+
+    volumes:
+      - smtp4-data:/var/mail
+      - ./stress-test/results/server4-logs:/var/log/prixfixe
+
+    networks:
+      stress-test-net:
+        ipv4_address: 172.25.0.14
+
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "prixfixe-server"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # SMTP Server 5
+  smtp-server-5:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: prixfixe-smtp:latest
+    container_name: prixfixe-smtp-5
+    hostname: smtp5.test.local
+    restart: unless-stopped
+
+    environment:
+      SMTP_DOMAIN: smtp5.test.local
+      SMTP_PORT: 2525
+      SMTP_MAX_CONNECTIONS: 100
+      SMTP_MAX_MESSAGE_SIZE: 10485760
+
+    volumes:
+      - smtp5-data:/var/mail
+      - ./stress-test/results/server5-logs:/var/log/prixfixe
+
+    networks:
+      stress-test-net:
+        ipv4_address: 172.25.0.15
+
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "prixfixe-server"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ============================================================================
+  # Load Generator
+  # ============================================================================
+
+  load-generator:
+    build:
+      context: ./stress-test/load-generator
+      dockerfile: Dockerfile
+    image: prixfixe-loadgen:latest
+    container_name: prixfixe-loadgen
+    hostname: loadgen.test.local
+
+    depends_on:
+      smtp-server-1:
+        condition: service_healthy
+      smtp-server-2:
+        condition: service_healthy
+      smtp-server-3:
+        condition: service_healthy
+      smtp-server-4:
+        condition: service_healthy
+      smtp-server-5:
+        condition: service_healthy
+
+    volumes:
+      - ./stress-test/results:/results
+
+    networks:
+      - stress-test-net
+
+    # Default command - can be overridden
+    command:
+      - "--servers"
+      - "smtp-server-1,smtp-server-2,smtp-server-3,smtp-server-4,smtp-server-5"
+      - "--port"
+      - "2525"
+      - "--mode"
+      - "burst"
+      - "--messages"
+      - "1000"
+      - "--workers"
+      - "20"
+      - "--size"
+      - "medium"
+      - "--output"
+      - "/results/test-results.json"
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# ============================================================================
+# Volumes
+# ============================================================================
+
+volumes:
+  smtp1-data:
+    driver: local
+  smtp2-data:
+    driver: local
+  smtp3-data:
+    driver: local
+  smtp4-data:
+    driver: local
+  smtp5-data:
+    driver: local
+
+# ============================================================================
+# Networks
+# ============================================================================
+
+networks:
+  stress-test-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16
+          gateway: 172.25.0.1
