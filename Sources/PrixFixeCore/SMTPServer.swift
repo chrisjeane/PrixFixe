@@ -7,6 +7,12 @@ import Foundation
 import PrixFixeNetwork
 import PrixFixeMessage
 
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#endif
+
 /// The main SMTP server actor that orchestrates connection handling and message processing.
 ///
 /// `SMTPServer` is the primary interface for embedding an SMTP server in your application.
@@ -122,6 +128,9 @@ public actor SMTPServer {
     /// Active session tasks
     private var sessionTasks: [UUID: Task<Void, Never>] = [:]
 
+    /// Optional metrics collector for production monitoring
+    private var metricsCollector: MetricsCollector?
+
     /// Callback invoked when a complete email message is received.
     ///
     /// Set this closure to process received messages. The closure receives an ``EmailMessage``
@@ -149,8 +158,11 @@ public actor SMTPServer {
 
     /// Initialize a new SMTP server with the specified configuration.
     ///
-    /// - Parameter configuration: Server configuration including domain, port, and limits.
-    ///   Defaults to ``ServerConfiguration/default``.
+    /// - Parameters:
+    ///   - configuration: Server configuration including domain, port, and limits.
+    ///     Defaults to ``ServerConfiguration/default``.
+    ///   - enableMetrics: Whether to enable production metrics collection. Defaults to false.
+    ///   - metricsInterval: Metrics emission interval in seconds. Defaults to 60.
     ///
     /// ## Example
     ///
@@ -158,17 +170,29 @@ public actor SMTPServer {
     /// // Use default configuration (localhost:2525)
     /// let server = SMTPServer()
     ///
-    /// // Or customize the configuration
+    /// // Or customize the configuration with metrics
     /// let config = ServerConfiguration(
     ///     domain: "mail.example.com",
     ///     port: 2525,
     ///     maxConnections: 100,
     ///     maxMessageSize: 10 * 1024 * 1024
     /// )
-    /// let customServer = SMTPServer(configuration: config)
+    /// let customServer = SMTPServer(
+    ///     configuration: config,
+    ///     enableMetrics: true,
+    ///     metricsInterval: 60
+    /// )
     /// ```
-    public init(configuration: ServerConfiguration = .default) {
+    public init(
+        configuration: ServerConfiguration = .default,
+        enableMetrics: Bool = false,
+        metricsInterval: TimeInterval = 60.0
+    ) {
         self.configuration = configuration
+
+        if enableMetrics {
+            self.metricsCollector = MetricsCollector(emissionInterval: metricsInterval)
+        }
     }
 
     /// Start the SMTP server and begin accepting connections.
@@ -204,7 +228,10 @@ public actor SMTPServer {
         let address = SocketAddress.anyAddress(port: configuration.port)
 
         try await socket.bind(to: address)
-        try await socket.listen(backlog: configuration.maxConnections)
+
+        // Use configured backlog (or SOMAXCONN if set to 0)
+        let backlog = configuration.listenBacklog > 0 ? configuration.listenBacklog : Int(SOMAXCONN)
+        try await socket.listen(backlog: backlog)
 
         self.transport = socket
         self.isRunning = true
@@ -254,8 +281,18 @@ public actor SMTPServer {
             do {
                 guard let transport = self.transport else { break }
 
+                // Measure accept latency
+                let acceptStart = Date()
+
                 // Accept a connection
                 let connection = try await transport.accept()
+
+                // Record accept latency
+                let acceptLatency = Date().timeIntervalSince(acceptStart)
+                await metricsCollector?.recordConnectionAccepted(latency: acceptLatency)
+
+                // Emit metrics if interval has elapsed
+                await metricsCollector?.maybeEmitMetrics()
 
                 // Create session configuration
                 let sessionConfig = SessionConfiguration(
@@ -293,10 +330,22 @@ public actor SMTPServer {
         // Capture messageHandler to avoid data race
         let handler = messageHandler
 
+        // Create message handler wrapper that records metrics
+        let wrappedHandler: (@Sendable (EmailMessage) -> Void)? = if let handler = handler {
+            { [weak self] message in
+                handler(message)
+                Task {
+                    await self?.metricsCollector?.recordMessageProcessed(size: message.data.count)
+                }
+            }
+        } else {
+            nil
+        }
+
         let session = SMTPSession(
             connection: connection,
             configuration: sessionConfig,
-            messageHandler: handler
+            messageHandler: wrappedHandler
         )
 
         await session.run()
@@ -305,6 +354,11 @@ public actor SMTPServer {
     /// Remove a completed session
     private func removeSession(id: UUID) {
         sessionTasks.removeValue(forKey: id)
+
+        // Record connection closed
+        Task {
+            await metricsCollector?.recordConnectionClosed()
+        }
     }
 }
 
@@ -387,6 +441,20 @@ public struct ServerConfiguration: Sendable {
     ///   Adjust based on your application's needs.
     public let maxMessageSize: Int
 
+    /// TCP listen backlog size for incoming connection queue.
+    ///
+    /// This parameter controls the size of the kernel's listen queue for pending connections.
+    /// When the backlog is full, new connection attempts will be rejected by the OS.
+    ///
+    /// Recommended values:
+    /// - Development: 128 (default)
+    /// - Production (moderate load): 256
+    /// - Production (high load): 512 or SOMAXCONN
+    ///
+    /// - Note: Values above SOMAXCONN (typically 128 on macOS, 4096 on Linux) are
+    ///   clamped by the operating system. Set to 0 to use SOMAXCONN.
+    public let listenBacklog: Int
+
     /// TLS configuration for STARTTLS support (nil = TLS disabled)
     ///
     /// When configured, the server will advertise STARTTLS in EHLO responses
@@ -416,12 +484,14 @@ public struct ServerConfiguration: Sendable {
     /// - Port: 2525 (non-privileged)
     /// - Max Connections: 100
     /// - Max Message Size: 10 MB
+    /// - Listen Backlog: 256
     /// - TLS: Disabled
     public static let `default` = ServerConfiguration(
         domain: "localhost",
         port: 2525,
         maxConnections: 100,
         maxMessageSize: 10 * 1024 * 1024, // 10 MB
+        listenBacklog: 256,
         tlsConfiguration: nil
     )
 
@@ -432,18 +502,21 @@ public struct ServerConfiguration: Sendable {
     ///   - port: The TCP port to bind to.
     ///   - maxConnections: Maximum concurrent connections. Defaults to 100.
     ///   - maxMessageSize: Maximum message size in bytes. Defaults to 10 MB.
+    ///   - listenBacklog: TCP listen backlog size. Defaults to 256. Use 0 for SOMAXCONN.
     ///   - tlsConfiguration: Optional TLS configuration for STARTTLS. Defaults to nil (disabled).
     public init(
         domain: String = "localhost",
         port: UInt16,
         maxConnections: Int = 100,
         maxMessageSize: Int = 10 * 1024 * 1024,
+        listenBacklog: Int = 256,
         tlsConfiguration: TLSConfiguration? = nil
     ) {
         self.domain = domain
         self.port = port
         self.maxConnections = maxConnections
         self.maxMessageSize = maxMessageSize
+        self.listenBacklog = listenBacklog
         self.tlsConfiguration = tlsConfiguration
     }
 }
