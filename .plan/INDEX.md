@@ -35,6 +35,7 @@ See: [V0.2.0 Release Review](reports/V0.2.0-RELEASE-REVIEW.md) for comprehensive
 ### Reports & Summaries
 - [v0.2.0 Release Review](reports/V0.2.0-RELEASE-REVIEW.md) - ✅ Comprehensive final release readiness assessment (APPROVED)
 - [v0.2.0 Stress Test Report](reports/V0.2.0-STRESS-TEST-REPORT.md) - ✅ Performance validation (659 msg/sec, 100% success)
+- [v0.2.0 Stress Test Action Items](tasks/v0.2.0-stress-test-action-items.md) - 📋 Action items from stress testing (12 items, 1 blocks release)
 - [Phase 4 Implementation Report](reports/IMPLEMENTATION-REPORT.md) - Production readiness phase completion
 - [Phase 4 Summary](reports/PHASE-4-SUMMARY.md) - Deliverables and status overview
 - [Phase 3 Linux OpenSSL](reports/PHASE-3-LINUX-OPENSSL.md) - Linux TLS implementation details
@@ -151,10 +152,12 @@ See: [V0.2.0 Release Review](reports/V0.2.0-RELEASE-REVIEW.md) for comprehensive
 
 ### Immediate (v0.2.0 Release)
 1. ✅ Final release review completed
-2. ⬜ Add deprecation warning note to CHANGELOG.md
-3. ⬜ Tag release v0.2.0
-4. ⬜ Create GitHub release with notes
-5. ⬜ Announce release
+2. ✅ Stress test action items analyzed (1 doc task blocks release)
+3. ⬜ Complete H2: Create Production Deployment Guide (from stress test action items)
+4. ⬜ Add deprecation warning note to CHANGELOG.md
+5. ⬜ Tag release v0.2.0
+6. ⬜ Create GitHub release with notes
+7. ⬜ Announce release
 
 ### Future (v0.3.0 Planning)
 - Performance optimizations (response formatting)

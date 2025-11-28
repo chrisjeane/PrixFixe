@@ -175,8 +175,9 @@ See [Architecture Documentation](.plan/architecture/2025-11-27-system-architectu
 ## Documentation
 
 - **[TLS Guide](Documentation/TLS-GUIDE.md)**: Comprehensive guide for configuring STARTTLS/TLS encryption
+- **[Production Deployment Guide](Documentation/PRODUCTION-DEPLOYMENT.md)**: Performance characteristics, capacity planning, and production operations
 - **[Integration Guide](.plan/INTEGRATION.md)**: Comprehensive guide for embedding PrixFixe in your application
-- **[Deployment Guide](DEPLOYMENT.md)**: Docker deployment and production configuration
+- **[Deployment Guide](DEPLOYMENT.md)**: Docker deployment and infrastructure configuration
 - **[API Documentation](https://yourusername.github.io/PrixFixe)**: Full DocC documentation (coming soon)
 - **[CHANGELOG](CHANGELOG.md)**: Version history and release notes
 - **[Examples](Examples/)**: Working examples including SimpleServer
