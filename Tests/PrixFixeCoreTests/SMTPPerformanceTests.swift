@@ -201,9 +201,8 @@ struct SMTPPerformanceTests {
 
     // MARK: - Large Message Handling
 
-    // TODO: Fix large message test - message handler not being called
-    // @Test("Handle large message efficiently")
-    func disabledTestLargeMessageHandling() async {
+    @Test("Handle large message efficiently")
+    func testLargeMessageHandling() async {
         // Create a smaller but still sizable message (100KB)
         let largeLine = String(repeating: "X", count: 1000)
         let lineCount = 100  // 100KB message
@@ -224,25 +223,32 @@ struct SMTPPerformanceTests {
         let conn = StressTestConnection(commands: commands)
         let config = SessionConfiguration(
             domain: "test.com",
-            maxMessageSize: 5 * 1024 * 1024,  // 5MB limit
+            maxCommandLength: 10_000,  // Increase command length to handle long lines
+            maxMessageSize: 50 * 1024 * 1024,  // 50MB limit - plenty for 100KB message
             connectionTimeout: 0,
             commandTimeout: 0
         )
 
-        // Use actor for thread-safe flag
-        actor Flag {
-            private var value = false
-            func set() { value = true }
-            func get() -> Bool { value }
+        // Use a simple atomic flag with OSAtomic-style approach
+        final class AtomicFlag: @unchecked Sendable {
+            private var _value: Int32 = 0
+            private let lock = NSLock()
+
+            func set() {
+                lock.withLock { _value = 1 }
+            }
+
+            func get() -> Bool {
+                lock.withLock { _value != 0 }
+            }
         }
 
-        let flag = Flag()
+        let flag = AtomicFlag()
         let session = SMTPSession(
             connection: conn,
             configuration: config,
             messageHandler: { _ in
-                // Handler is @Sendable, must use Task for actor access
-                Task { await flag.set() }
+                flag.set()
             }
         )
 
@@ -250,12 +256,9 @@ struct SMTPPerformanceTests {
         await session.run()
         let elapsed = Date().timeIntervalSince(startTime)
 
-        // Give async task time to complete
-        try? await Task.sleep(nanoseconds: 10_000_000)  // 10ms
-
-        let received = await flag.get()
+        let received = flag.get()
         #expect(received)
-        // Should handle 1MB message in reasonable time
+        // Should handle 100KB message in reasonable time
         #expect(elapsed < 2.0)
     }
 
@@ -264,6 +267,8 @@ struct SMTPPerformanceTests {
     @Test("Multiple concurrent sessions")
     func testConcurrentSessions() async {
         let sessionCount = 10
+
+        let startTime = Date()
 
         await withTaskGroup(of: Void.self) { group in
             for sessionIndex in 0..<sessionCount {
@@ -293,7 +298,12 @@ struct SMTPPerformanceTests {
             await group.waitForAll()
         }
 
-        // If we get here without timeout or crash, test passes
+        let elapsed = Date().timeIntervalSince(startTime)
+
+        // Should handle 10 concurrent sessions quickly
+        #expect(elapsed < 1.0)
+
+        // If we get here without timeout or crash, concurrency works
         #expect(true)
     }
 
