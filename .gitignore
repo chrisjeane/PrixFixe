@@ -1,0 +1,52 @@
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# Xcode
+xcuserdata/
+*.xcodeproj
+*.xcworkspace
+!*.xcworkspace/contents.xcworkspacedata
+*.moved-aside
+*.swp
+*~.nib
+DerivedData/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Build artifacts
+*.o
+*.lo
+*.la
+*.al
+.libs/
+*.so
+*.so.*
+*.dylib
+*.a
+
+# Test artifacts
+.build-tests/
+*.profdata
+*.profraw
+
+# IDE
+.vscode/
+.idea/
+
+# Documentation
+docs/
+.docc-build/
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+
+# Planning (keep planning directory but ignore temp files)
+.plan/*.tmp
