@@ -7,8 +7,20 @@ import Foundation
 
 #if canImport(Darwin)
 import Darwin
+private let posixClose = Darwin.close
+private let posixRead = Darwin.read
+private let posixWrite = Darwin.write
+private let posixBind = Darwin.bind
+private let posixListen = Darwin.listen
+private let posixAccept = Darwin.accept
 #elseif canImport(Glibc)
 import Glibc
+private let posixClose = Glibc.close
+private let posixRead = Glibc.read
+private let posixWrite = Glibc.write
+private let posixBind = Glibc.bind
+private let posixListen = Glibc.listen
+private let posixAccept = Glibc.accept
 #else
 #error("Unsupported platform - requires Darwin or Glibc")
 #endif
@@ -28,7 +40,7 @@ public final class FoundationSocket: NetworkTransport, @unchecked Sendable {
         // Synchronous cleanup in deinit
         lock.withLock {
             if let fd = fileDescriptor {
-                Darwin.close(fd)
+                posixClose(fd)
                 fileDescriptor = nil
             }
         }
@@ -59,7 +71,7 @@ public final class FoundationSocket: NetworkTransport, @unchecked Sendable {
             throw NetworkError.invalidState("Socket not bound")
         }
 
-        let result = Darwin.listen(fd, Int32(backlog))
+        let result = posixListen(fd, Int32(backlog))
         guard result == 0 else {
             throw NetworkError.listenFailed("listen() failed: \(String(cString: strerror(errno)))")
         }
@@ -79,7 +91,7 @@ public final class FoundationSocket: NetworkTransport, @unchecked Sendable {
 
             let clientFD = withUnsafeMutablePointer(to: &addr) { addrPtr in
                 addrPtr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPtr in
-                    Darwin.accept(fd, sockaddrPtr, &addrLen)
+                    posixAccept(fd, sockaddrPtr, &addrLen)
                 }
             }
 
@@ -100,7 +112,7 @@ public final class FoundationSocket: NetworkTransport, @unchecked Sendable {
         lock.withLock {
             guard let fd = fileDescriptor else { return }
 
-            Darwin.close(fd)
+            posixClose(fd)
             fileDescriptor = nil
         }
     }
@@ -156,7 +168,7 @@ public final class FoundationSocket: NetworkTransport, @unchecked Sendable {
         // Bind
         let bindResult = withUnsafePointer(to: &addr) { addrPtr in
             addrPtr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPtr in
-                Darwin.bind(fd, sockaddrPtr, socklen_t(MemoryLayout<sockaddr_in6>.size))
+                posixBind(fd, sockaddrPtr, socklen_t(MemoryLayout<sockaddr_in6>.size))
             }
         }
 
@@ -197,7 +209,7 @@ public final class FoundationConnection: NetworkConnection, @unchecked Sendable 
         // Synchronous cleanup in deinit
         lock.withLock {
             if let fd = fileDescriptor {
-                Darwin.close(fd)
+                posixClose(fd)
                 fileDescriptor = nil
             }
         }
@@ -213,7 +225,7 @@ public final class FoundationConnection: NetworkConnection, @unchecked Sendable 
             // TODO: Phase 2 - Use async I/O with kqueue/epoll
             var buffer = [UInt8](repeating: 0, count: maxBytes)
 
-            let bytesRead = Darwin.read(fd, &buffer, maxBytes)
+            let bytesRead = posixRead(fd, &buffer, maxBytes)
 
             if bytesRead < 0 {
                 let err = errno
@@ -240,7 +252,7 @@ public final class FoundationConnection: NetworkConnection, @unchecked Sendable 
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             // Simple blocking write for Phase 1
             let bytesWritten = data.withUnsafeBytes { bufferPtr in
-                Darwin.write(fd, bufferPtr.baseAddress!, data.count)
+                posixWrite(fd, bufferPtr.baseAddress!, data.count)
             }
 
             if bytesWritten < 0 {
@@ -260,7 +272,7 @@ public final class FoundationConnection: NetworkConnection, @unchecked Sendable 
         lock.withLock {
             guard let fd = fileDescriptor else { return }
 
-            Darwin.close(fd)
+            posixClose(fd)
             fileDescriptor = nil
         }
     }
