@@ -50,3 +50,8 @@ docs/
 
 # Planning (keep planning directory but ignore temp files)
 .plan/*.tmp
+
+# Docker and deployment
+mail-data/
+logs/
+.env

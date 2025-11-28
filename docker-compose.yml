@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  # PrixFixe SMTP Server
+  prixfixe:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: prixfixe:latest
+    container_name: prixfixe-smtp
+
+    # Restart policy
+    restart: unless-stopped
+
+    # Port mappings
+    ports:
+      - "${SMTP_PORT:-2525}:2525"
+
+    # Environment variables (override via .env file)
+    environment:
+      SMTP_DOMAIN: ${SMTP_DOMAIN:-localhost}
+      SMTP_PORT: 2525
+      SMTP_MAX_CONNECTIONS: ${SMTP_MAX_CONNECTIONS:-100}
+      SMTP_MAX_MESSAGE_SIZE: ${SMTP_MAX_MESSAGE_SIZE:-10485760}
+
+    # Volume for persistent message storage
+    volumes:
+      - mail-data:/var/mail
+      - ./logs:/var/log/prixfixe
+
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "prixfixe-server"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Network
+    networks:
+      - prixfixe-net
+
+# Named volumes for data persistence
+volumes:
+  mail-data:
+    driver: local
+
+# Network configuration
+networks:
+  prixfixe-net:
+    driver: bridge

@@ -1,0 +1,62 @@
+# Build artifacts
+.build/
+*.xcodeproj
+*.xcworkspace
+.swiftpm/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation (not needed in container)
+*.md
+!README.md
+docs/
+Documentation/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Test files
+Tests/
+
+# Plan and project management
+.plan/
+
+# Claude
+.claude/
+
+# Package manager
+Package.resolved
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+
+# Temporary files
+tmp/
+temp/
+*.tmp

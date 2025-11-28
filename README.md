@@ -122,6 +122,7 @@ See [Architecture Documentation](.plan/architecture/2025-11-27-system-architectu
 ## Documentation
 
 - **[Integration Guide](INTEGRATION.md)**: Comprehensive guide for embedding PrixFixe in your application
+- **[Deployment Guide](DEPLOYMENT.md)**: Docker deployment and production configuration
 - **[API Documentation](https://yourusername.github.io/PrixFixe)**: Full DocC documentation (coming soon)
 - **[CHANGELOG](CHANGELOG.md)**: Version history and release notes
 - **[Examples](Examples/)**: Working examples including SimpleServer
@@ -154,6 +155,8 @@ See the [CHANGELOG](CHANGELOG.md) for complete v0.1.0 release notes and [Integra
 
 ## Building
 
+### Native Build
+
 ```bash
 # Build the package
 swift build
@@ -163,6 +166,21 @@ swift test
 
 # Build for release
 swift build -c release
+```
+
+### Docker Build
+
+```bash
+# Build Docker image
+./scripts/build.sh
+
+# Run with Docker
+./scripts/run.sh
+
+# Or use docker-compose
+docker-compose up -d
+
+# See DEPLOYMENT.md for complete Docker guide
 ```
 
 ## Testing
