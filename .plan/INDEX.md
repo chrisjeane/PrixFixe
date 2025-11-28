@@ -2,12 +2,19 @@
 
 **Project**: PrixFixe - Lightweight Embedded SMTP Server
 **Platform**: Swift (Linux, macOS, iOS)
-**Status**: v0.1.0 Release Ready | v0.2.0 Planning (STARTTLS)
+**Status**: v0.2.0 CRITICAL REVIEW - TLS Implementation Blocked
 **Last Updated**: 2025-11-28
+
+## 🔴 CRITICAL: v0.2.0 Release Blocked
+
+**Status**: NOT READY FOR RELEASE
+**Critical Issue**: macOS/iOS TLS certificate loading not implemented
+**See**: [V0.2.0 Release Review](reports/V0.2.0-RELEASE-REVIEW.md) for full details
 
 ## Planning Artifacts
 
-### Progress & Status
+### Release Reviews & Status
+- [v0.2.0 Release Readiness Review](reports/V0.2.0-RELEASE-REVIEW.md) - **FAIL - Release Blocked** (NEW - 2025-11-28)
 - [v0.1.0 Release Readiness](V0.1.0-RELEASE-READINESS.md) - Final release assessment (APPROVED)
 - [Progress Report](PROGRESS-REPORT.md) - Comprehensive status review (2025-11-27)
 - [Work Items](work-items.md) - Prioritized action items and sprint planning
@@ -15,9 +22,16 @@
 - [Next Phase Issues](NEXT_PHASE_ISSUES.md) - v0.2.0 roadmap and outstanding issues (NEW - 2025-11-27)
 - [Organization Summary](ORGANIZATION-SUMMARY.md) - Planning directory structure and reorganization (NEW - 2025-11-27)
 
+### Active Issues (v0.2.0)
+- [CRITICAL-001: macOS/iOS TLS Not Implemented](issues/CRITICAL-001-macos-tls-not-implemented.md) - 🔴 **BLOCKS RELEASE** (NEW - 2025-11-28)
+- [HIGH-002: Self-Signed Certs Not Implemented](issues/HIGH-002-selfsigned-certs-not-implemented.md) - 🟠 Should fix (NEW - 2025-11-28)
+- [MEDIUM-003: Documentation Fixes](issues/MEDIUM-003-documentation-fixes.md) - 🟡 Quick wins (NEW - 2025-11-28)
+
 ### Reports & Summaries
+- [v0.2.0 Release Review](reports/V0.2.0-RELEASE-REVIEW.md) - Comprehensive release readiness assessment (NEW - 2025-11-28)
 - [Phase 4 Implementation Report](reports/IMPLEMENTATION-REPORT.md) - Production readiness phase completion
 - [Phase 4 Summary](reports/PHASE-4-SUMMARY.md) - Deliverables and status overview
+- [Phase 3 Linux OpenSSL](reports/PHASE-3-LINUX-OPENSSL.md) - Linux TLS implementation details
 
 ### Integration & Documentation
 - [Integration Guide](INTEGRATION.md) - Comprehensive guide for embedding PrixFixe in applications

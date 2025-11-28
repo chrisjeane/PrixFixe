@@ -433,20 +433,454 @@ public final class FoundationConnection: NetworkConnection, @unchecked Sendable 
             }
 
         case .selfSigned(let commonName):
-            // Generate a self-signed certificate (simplified - not production ready)
-            // For now, throw an error as this requires more complex implementation
-            throw NetworkError.tlsUpgradeFailed("Self-signed certificates not yet implemented")
+            // Generate a self-signed certificate
+            let identity = try generateSelfSignedIdentity_Darwin(commonName: commonName)
+
+            let status = SSLSetCertificate(context, [identity] as CFArray)
+            guard status == errSecSuccess else {
+                throw NetworkError.invalidCertificate("Failed to set self-signed certificate: \(status)")
+            }
         }
     }
 
     private func createIdentity_Darwin(certData: Data, keyData: Data) throws -> SecIdentity {
-        // This is a placeholder. A full implementation would:
-        // 1. Parse the PEM certificate and key
-        // 2. Convert to DER format if needed
-        // 3. Create SecCertificate and SecKey objects
-        // 4. Create SecIdentity from those objects
-        // For now, we'll throw an error
-        throw NetworkError.invalidCertificate("Certificate loading not fully implemented")
+        // Parse PEM-encoded certificate and key data
+        let certDER = try parsePEMToDER(data: certData, label: "CERTIFICATE")
+        let keyDER = try parsePEMToDER(data: keyData, label: ["PRIVATE KEY", "RSA PRIVATE KEY", "EC PRIVATE KEY"])
+
+        // Create SecCertificate from DER data
+        guard let certificate = SecCertificateCreateWithData(nil, certDER as CFData) else {
+            throw NetworkError.invalidCertificate("Failed to create SecCertificate from DER data")
+        }
+
+        // Create SecKey from DER data
+        let keyAttributes: [CFString: Any] = [
+            kSecAttrKeyType: kSecAttrKeyTypeRSA,  // Try RSA first, fall back to EC if needed
+            kSecAttrKeyClass: kSecAttrKeyClassPrivate,
+            kSecAttrCanSign: true,
+            kSecAttrCanDecrypt: true
+        ]
+
+        var error: Unmanaged<CFError>?
+        let privateKey: SecKey
+
+        if let rsaKey = SecKeyCreateWithData(keyDER as CFData, keyAttributes as CFDictionary, &error) {
+            privateKey = rsaKey
+        } else {
+            // Try EC key if RSA fails
+            let ecKeyAttributes: [CFString: Any] = [
+                kSecAttrKeyType: kSecAttrKeyTypeECSECPrimeRandom,
+                kSecAttrKeyClass: kSecAttrKeyClassPrivate,
+                kSecAttrCanSign: true,
+                kSecAttrCanDecrypt: true
+            ]
+
+            error = nil
+            guard let ecKey = SecKeyCreateWithData(keyDER as CFData, ecKeyAttributes as CFDictionary, &error) else {
+                let errorDesc = error?.takeRetainedValue().localizedDescription ?? "Unknown error"
+                throw NetworkError.invalidCertificate("Failed to create SecKey: \(errorDesc)")
+            }
+            privateKey = ecKey
+        }
+
+        // Import certificate and key to temporary keychain to create identity
+        // Use a unique tag based on timestamp to avoid conflicts
+        let tag = "com.prixfixe.temp.\(Date().timeIntervalSince1970)".data(using: .utf8)!
+
+        // Add certificate to keychain
+        let certAddQuery: [CFString: Any] = [
+            kSecClass: kSecClassCertificate,
+            kSecValueRef: certificate,
+            kSecAttrLabel: tag
+        ]
+
+        var certStatus = SecItemAdd(certAddQuery as CFDictionary, nil)
+        if certStatus == errSecDuplicateItem {
+            // Delete and retry
+            SecItemDelete(certAddQuery as CFDictionary)
+            certStatus = SecItemAdd(certAddQuery as CFDictionary, nil)
+        }
+        guard certStatus == errSecSuccess else {
+            throw NetworkError.invalidCertificate("Failed to add certificate to keychain: \(certStatus)")
+        }
+
+        // Add private key to keychain
+        let keyAddQuery: [CFString: Any] = [
+            kSecClass: kSecClassKey,
+            kSecValueRef: privateKey,
+            kSecAttrLabel: tag,
+            kSecAttrApplicationTag: tag
+        ]
+
+        var keyStatus = SecItemAdd(keyAddQuery as CFDictionary, nil)
+        if keyStatus == errSecDuplicateItem {
+            // Delete and retry
+            SecItemDelete(keyAddQuery as CFDictionary)
+            keyStatus = SecItemAdd(keyAddQuery as CFDictionary, nil)
+        }
+        guard keyStatus == errSecSuccess else {
+            // Clean up certificate
+            SecItemDelete(certAddQuery as CFDictionary)
+            throw NetworkError.invalidCertificate("Failed to add private key to keychain: \(keyStatus)")
+        }
+
+        // Retrieve identity from keychain
+        let identityQuery: [CFString: Any] = [
+            kSecClass: kSecClassIdentity,
+            kSecAttrLabel: tag,
+            kSecReturnRef: true
+        ]
+
+        var identityRef: CFTypeRef?
+        let identityStatus = SecItemCopyMatching(identityQuery as CFDictionary, &identityRef)
+
+        // Clean up temporary keychain items
+        defer {
+            SecItemDelete(certAddQuery as CFDictionary)
+            SecItemDelete(keyAddQuery as CFDictionary)
+        }
+
+        guard identityStatus == errSecSuccess, let identity = identityRef else {
+            throw NetworkError.invalidCertificate("Failed to retrieve identity from keychain: \(identityStatus)")
+        }
+
+        return (identity as! SecIdentity)
+    }
+
+    private func parsePEMToDER(data: Data, label: String) throws -> Data {
+        return try parsePEMToDER(data: data, label: [label])
+    }
+
+    private func parsePEMToDER(data: Data, label: [String]) throws -> Data {
+        guard let pemString = String(data: data, encoding: .utf8) else {
+            throw NetworkError.invalidCertificate("PEM data is not valid UTF-8")
+        }
+
+        // Try each label variant
+        for currentLabel in label {
+            let beginMarker = "-----BEGIN \(currentLabel)-----"
+            let endMarker = "-----END \(currentLabel)-----"
+
+            guard let beginRange = pemString.range(of: beginMarker),
+                  let endRange = pemString.range(of: endMarker) else {
+                continue  // Try next label
+            }
+
+            // Extract base64 content between markers
+            let base64Start = beginRange.upperBound
+            let base64End = endRange.lowerBound
+            let base64String = String(pemString[base64Start..<base64End])
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .replacingOccurrences(of: "\n", with: "")
+                .replacingOccurrences(of: "\r", with: "")
+                .replacingOccurrences(of: " ", with: "")
+
+            guard let derData = Data(base64Encoded: base64String) else {
+                throw NetworkError.invalidCertificate("Failed to decode base64 PEM content")
+            }
+
+            return derData
+        }
+
+        throw NetworkError.invalidCertificate("No valid PEM marker found. Expected one of: \(label.joined(separator: ", "))")
+    }
+
+    private func generateSelfSignedIdentity_Darwin(commonName: String) throws -> SecIdentity {
+        // Generate RSA key pair
+        let keyAttributes: [CFString: Any] = [
+            kSecAttrKeyType: kSecAttrKeyTypeRSA,
+            kSecAttrKeySizeInBits: 2048
+        ]
+
+        var error: Unmanaged<CFError>?
+        guard let privateKey = SecKeyCreateRandomKey(keyAttributes as CFDictionary, &error) else {
+            let errorDesc = error?.takeRetainedValue().localizedDescription ?? "Unknown error"
+            throw NetworkError.tlsUpgradeFailed("Failed to generate private key: \(errorDesc)")
+        }
+
+        guard let publicKey = SecKeyCopyPublicKey(privateKey) else {
+            throw NetworkError.tlsUpgradeFailed("Failed to extract public key")
+        }
+
+        // Create self-signed certificate
+        // Note: This is a simplified implementation using the private API approach
+        // For production, consider using OpenSSL or external certificate generation
+        let certificate = try createSelfSignedCertificate_Darwin(
+            publicKey: publicKey,
+            privateKey: privateKey,
+            commonName: commonName
+        )
+
+        // Import to temporary keychain
+        let tag = "com.prixfixe.selfsigned.\(Date().timeIntervalSince1970)".data(using: .utf8)!
+
+        // Add certificate
+        let certAddQuery: [CFString: Any] = [
+            kSecClass: kSecClassCertificate,
+            kSecValueRef: certificate,
+            kSecAttrLabel: tag
+        ]
+
+        var certStatus = SecItemAdd(certAddQuery as CFDictionary, nil)
+        if certStatus == errSecDuplicateItem {
+            SecItemDelete(certAddQuery as CFDictionary)
+            certStatus = SecItemAdd(certAddQuery as CFDictionary, nil)
+        }
+        guard certStatus == errSecSuccess else {
+            throw NetworkError.tlsUpgradeFailed("Failed to add self-signed certificate to keychain: \(certStatus)")
+        }
+
+        // Add private key
+        let keyAddQuery: [CFString: Any] = [
+            kSecClass: kSecClassKey,
+            kSecValueRef: privateKey,
+            kSecAttrLabel: tag,
+            kSecAttrApplicationTag: tag
+        ]
+
+        var keyStatus = SecItemAdd(keyAddQuery as CFDictionary, nil)
+        if keyStatus == errSecDuplicateItem {
+            SecItemDelete(keyAddQuery as CFDictionary)
+            keyStatus = SecItemAdd(keyAddQuery as CFDictionary, nil)
+        }
+        guard keyStatus == errSecSuccess else {
+            SecItemDelete(certAddQuery as CFDictionary)
+            throw NetworkError.tlsUpgradeFailed("Failed to add private key to keychain: \(keyStatus)")
+        }
+
+        // Retrieve identity
+        let identityQuery: [CFString: Any] = [
+            kSecClass: kSecClassIdentity,
+            kSecAttrLabel: tag,
+            kSecReturnRef: true
+        ]
+
+        var identityRef: CFTypeRef?
+        let identityStatus = SecItemCopyMatching(identityQuery as CFDictionary, &identityRef)
+
+        // Note: We keep the keychain items for the lifetime of the identity
+        // They will be cleaned up when the process exits
+
+        guard identityStatus == errSecSuccess, let identity = identityRef else {
+            SecItemDelete(certAddQuery as CFDictionary)
+            SecItemDelete(keyAddQuery as CFDictionary)
+            throw NetworkError.tlsUpgradeFailed("Failed to retrieve self-signed identity: \(identityStatus)")
+        }
+
+        return (identity as! SecIdentity)
+    }
+
+    private func createSelfSignedCertificate_Darwin(
+        publicKey: SecKey,
+        privateKey: SecKey,
+        commonName: String
+    ) throws -> SecCertificate {
+        // Create a minimal self-signed X.509 certificate in DER format
+        // This is a simplified implementation that creates a basic certificate
+
+        // Get public key data
+        var error: Unmanaged<CFError>?
+        guard let publicKeyData = SecKeyCopyExternalRepresentation(publicKey, &error) as Data? else {
+            let errorDesc = error?.takeRetainedValue().localizedDescription ?? "Unknown error"
+            throw NetworkError.tlsUpgradeFailed("Failed to export public key: \(errorDesc)")
+        }
+
+        // Build a minimal X.509v3 certificate in DER format
+        // This is a simplified certificate that should work for testing
+        let serialNumber = UInt64.random(in: 0...UInt64.max)
+        let notBefore = Date()
+        let notAfter = Date(timeIntervalSinceNow: 365 * 24 * 60 * 60) // 1 year validity
+
+        let certificateDER = try buildX509Certificate(
+            serialNumber: serialNumber,
+            notBefore: notBefore,
+            notAfter: notAfter,
+            commonName: commonName,
+            publicKeyData: publicKeyData,
+            privateKey: privateKey
+        )
+
+        guard let certificate = SecCertificateCreateWithData(nil, certificateDER as CFData) else {
+            throw NetworkError.tlsUpgradeFailed("Failed to create SecCertificate from generated DER data")
+        }
+
+        return certificate
+    }
+
+    private func buildX509Certificate(
+        serialNumber: UInt64,
+        notBefore: Date,
+        notAfter: Date,
+        commonName: String,
+        publicKeyData: Data,
+        privateKey: SecKey
+    ) throws -> Data {
+        // This is a highly simplified X.509 certificate builder
+        // For production use, consider using a proper ASN.1 library or OpenSSL
+
+        // Build TBSCertificate (To Be Signed Certificate)
+        var tbs = Data()
+
+        // Version: v3 (2)
+        tbs.append(contentsOf: [0xA0, 0x03, 0x02, 0x01, 0x02])
+
+        // Serial Number
+        let serialBytes = withUnsafeBytes(of: serialNumber.bigEndian) { Array($0) }
+        tbs.append(contentsOf: [0x02, UInt8(serialBytes.count)])
+        tbs.append(contentsOf: serialBytes)
+
+        // Signature Algorithm: sha256WithRSAEncryption
+        let sigAlgOID = Data([0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x0B])
+        tbs.append(contentsOf: [0x30, UInt8(sigAlgOID.count + 2)])
+        tbs.append(sigAlgOID)
+        tbs.append(contentsOf: [0x05, 0x00]) // NULL
+
+        // Issuer: CN=commonName
+        let issuer = buildX509Name(commonName: commonName)
+        tbs.append(issuer)
+
+        // Validity
+        let validity = buildX509Validity(notBefore: notBefore, notAfter: notAfter)
+        tbs.append(validity)
+
+        // Subject: CN=commonName (same as issuer for self-signed)
+        tbs.append(issuer)
+
+        // Subject Public Key Info
+        let spki = buildX509SubjectPublicKeyInfo(publicKeyData: publicKeyData)
+        tbs.append(spki)
+
+        // Wrap TBSCertificate in SEQUENCE
+        let tbsSequence = wrapInSequence(tbs)
+
+        // Sign the TBSCertificate
+        var signError: Unmanaged<CFError>?
+        guard let signature = SecKeyCreateSignature(
+            privateKey,
+            .rsaSignatureMessagePKCS1v15SHA256,
+            tbsSequence as CFData,
+            &signError
+        ) as Data? else {
+            let errorDesc = signError?.takeRetainedValue().localizedDescription ?? "Unknown error"
+            throw NetworkError.tlsUpgradeFailed("Failed to sign certificate: \(errorDesc)")
+        }
+
+        // Build final certificate: TBSCertificate + SignatureAlgorithm + Signature
+        var cert = tbsSequence
+
+        // Signature Algorithm (repeated)
+        cert.append(contentsOf: [0x30, UInt8(sigAlgOID.count + 2)])
+        cert.append(sigAlgOID)
+        cert.append(contentsOf: [0x05, 0x00])
+
+        // Signature (BIT STRING)
+        var sigBitString = Data([0x00]) // No unused bits
+        sigBitString.append(signature)
+        let sigLength = encodeLength(sigBitString.count)
+        cert.append(0x03) // BIT STRING tag
+        cert.append(sigLength)
+        cert.append(sigBitString)
+
+        // Wrap entire certificate in SEQUENCE
+        return wrapInSequence(cert)
+    }
+
+    private func buildX509Name(commonName: String) -> Data {
+        // CN=commonName
+        let cnOID = Data([0x06, 0x03, 0x55, 0x04, 0x03]) // id-at-commonName
+        let cnValue = commonName.data(using: .utf8)!
+
+        var attrValueSeq = Data()
+        attrValueSeq.append(cnOID)
+        attrValueSeq.append(0x0C) // UTF8String tag
+        attrValueSeq.append(UInt8(cnValue.count))
+        attrValueSeq.append(cnValue)
+
+        let attrSeq = wrapInSequence(attrValueSeq)
+        let rdnSet = wrapInSet(attrSeq)
+
+        return wrapInSequence(rdnSet)
+    }
+
+    private func buildX509Validity(notBefore: Date, notAfter: Date) -> Data {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMddHHmmss'Z'"
+        formatter.timeZone = TimeZone(identifier: "UTC")
+
+        let notBeforeStr = formatter.string(from: notBefore)
+        let notAfterStr = formatter.string(from: notAfter)
+
+        var validity = Data()
+
+        // notBefore (UTCTime)
+        let notBeforeData = notBeforeStr.data(using: .ascii)!
+        validity.append(0x17) // UTCTime tag
+        validity.append(UInt8(notBeforeData.count))
+        validity.append(notBeforeData)
+
+        // notAfter (UTCTime)
+        let notAfterData = notAfterStr.data(using: .ascii)!
+        validity.append(0x17) // UTCTime tag
+        validity.append(UInt8(notAfterData.count))
+        validity.append(notAfterData)
+
+        return wrapInSequence(validity)
+    }
+
+    private func buildX509SubjectPublicKeyInfo(publicKeyData: Data) -> Data {
+        // Algorithm: rsaEncryption
+        let rsaOID = Data([0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x01])
+        var algSeq = Data()
+        algSeq.append(rsaOID)
+        algSeq.append(contentsOf: [0x05, 0x00]) // NULL
+        let algorithm = wrapInSequence(algSeq)
+
+        // Subject Public Key (BIT STRING)
+        var pubKeyBitString = Data([0x00]) // No unused bits
+        pubKeyBitString.append(publicKeyData)
+        let pubKeyLength = encodeLength(pubKeyBitString.count)
+        var pubKey = Data([0x03]) // BIT STRING tag
+        pubKey.append(pubKeyLength)
+        pubKey.append(pubKeyBitString)
+
+        // Combine algorithm + public key
+        var spki = Data()
+        spki.append(algorithm)
+        spki.append(pubKey)
+
+        return wrapInSequence(spki)
+    }
+
+    private func wrapInSequence(_ data: Data) -> Data {
+        var result = Data([0x30]) // SEQUENCE tag
+        result.append(encodeLength(data.count))
+        result.append(data)
+        return result
+    }
+
+    private func wrapInSet(_ data: Data) -> Data {
+        var result = Data([0x31]) // SET tag
+        result.append(encodeLength(data.count))
+        result.append(data)
+        return result
+    }
+
+    private func encodeLength(_ length: Int) -> Data {
+        if length < 128 {
+            return Data([UInt8(length)])
+        } else if length < 256 {
+            return Data([0x81, UInt8(length)])
+        } else if length < 65536 {
+            let high = UInt8((length >> 8) & 0xFF)
+            let low = UInt8(length & 0xFF)
+            return Data([0x82, high, low])
+        } else {
+            // For longer lengths, use 3 bytes
+            let high = UInt8((length >> 16) & 0xFF)
+            let mid = UInt8((length >> 8) & 0xFF)
+            let low = UInt8(length & 0xFF)
+            return Data([0x83, high, mid, low])
+        }
     }
 
     private func readTLS(maxBytes: Int) async throws -> Data {

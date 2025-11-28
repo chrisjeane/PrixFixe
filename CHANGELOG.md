@@ -44,7 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Integration tests for complete STARTTLS flow
 
 #### Documentation
-- **TLS Guide** (`docs/TLS-GUIDE.md`): Comprehensive 600+ line guide covering:
+- **TLS Guide** (`Documentation/TLS-GUIDE.md`): Comprehensive 800+ line guide covering:
   - Certificate requirements and generation
   - Configuration options with examples
   - Platform differences (macOS vs Linux)
@@ -272,7 +272,7 @@ let config = ServerConfiguration(
 - **Linux**: Requires OpenSSL development libraries (`libssl-dev`)
 - **macOS/iOS**: No additional dependencies (uses system Security.framework)
 
-See [docs/TLS-GUIDE.md](docs/TLS-GUIDE.md) for complete TLS configuration documentation.
+See [Documentation/TLS-GUIDE.md](Documentation/TLS-GUIDE.md) for complete TLS configuration documentation.
 
 ---
 

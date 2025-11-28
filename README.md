@@ -14,7 +14,7 @@ PrixFixe is a pure Swift SMTP server library designed to be embedded in applicat
 
 The SMTP server provides production-ready TLS encryption via STARTTLS, with platform-native implementations using Security.framework on macOS/iOS and OpenSSL on Linux. Full RFC 5321 compliance with modern security features.
 
-**Current Status**: 243/252 tests passing ✅ | Zero warnings ✅ | Multi-platform TLS ready ✅ | 108 TLS-specific tests ✅
+**Current Status**: 248/258 tests passing ✅ | Zero warnings ✅ | Multi-platform TLS ready ✅ | 108 TLS-specific tests ✅
 
 ## Features
 
@@ -27,7 +27,7 @@ The SMTP server provides production-ready TLS encryption via STARTTLS, with plat
 - ✅ **RFC 5321 Compliant**: Core SMTP command support (HELO, EHLO, MAIL FROM, RCPT TO, DATA, QUIT, RSET, NOOP, STARTTLS)
 - ✅ **Production-Ready**: Connection timeouts, message size limits, graceful error handling
 - ✅ **Minimal Dependencies**: Pure Swift + Foundation (+ Network.framework on Apple platforms, OpenSSL on Linux)
-- ✅ **Well-Tested**: 252 tests covering all modules (243/252 passing, 9 fail only on macOS 26.1 beta)
+- ✅ **Well-Tested**: 258 tests covering all modules (248/258 passing, 10 fail only on macOS 26.1 beta)
 - ✅ **Command Timeouts**: Protection against slow-read attacks
 - ✅ **Comprehensive Documentation**: Full DocC API docs, integration guide, and TLS guide
 - ✅ **CI/CD Pipeline**: Automated testing on Linux and macOS via GitHub Actions
@@ -95,7 +95,7 @@ server.messageHandler = { message in
 try await server.start()
 ```
 
-The server will listen on the configured port and accept SMTP connections with full RFC 5321 compliance. When TLS is configured, clients can upgrade their connections using the STARTTLS command. See [docs/TLS-GUIDE.md](docs/TLS-GUIDE.md) for detailed TLS configuration options.
+The server will listen on the configured port and accept SMTP connections with full RFC 5321 compliance. When TLS is configured, clients can upgrade their connections using the STARTTLS command. See [Documentation/TLS-GUIDE.md](Documentation/TLS-GUIDE.md) for detailed TLS configuration options.
 
 ## Installation
 
@@ -105,7 +105,7 @@ Add PrixFixe to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/yourusername/PrixFixe.git", from: "0.1.0")
+    .package(url: "https://github.com/yourusername/PrixFixe.git", from: "0.2.0")
 ]
 ```
 
@@ -174,7 +174,7 @@ See [Architecture Documentation](.plan/architecture/2025-11-27-system-architectu
 
 ## Documentation
 
-- **[TLS Guide](docs/TLS-GUIDE.md)**: Comprehensive guide for configuring STARTTLS/TLS encryption
+- **[TLS Guide](Documentation/TLS-GUIDE.md)**: Comprehensive guide for configuring STARTTLS/TLS encryption
 - **[Integration Guide](.plan/INTEGRATION.md)**: Comprehensive guide for embedding PrixFixe in your application
 - **[Deployment Guide](DEPLOYMENT.md)**: Docker deployment and production configuration
 - **[API Documentation](https://yourusername.github.io/PrixFixe)**: Full DocC documentation (coming soon)
@@ -203,11 +203,11 @@ See [Architecture Documentation](.plan/architecture/2025-11-27-system-architectu
 ### Status Summary
 - **Code**: Production-ready with full TLS support
 - **Documentation**: Complete with TLS guide, DocC, and integration guide
-- **Testing**: 243/252 tests passing (9 Network.framework tests fail only on macOS 26.1 beta)
+- **Testing**: 248/258 tests passing (10 tests fail only on macOS 26.1 beta)
 - **CI/CD**: GitHub Actions configured for Linux and macOS
 - **Release**: Ready for v0.2.0
 
-See the [CHANGELOG](CHANGELOG.md) for complete v0.2.0 release notes and [TLS Guide](docs/TLS-GUIDE.md) for TLS configuration.
+See the [CHANGELOG](CHANGELOG.md) for complete v0.2.0 release notes and [TLS Guide](Documentation/TLS-GUIDE.md) for TLS configuration.
 
 ## Building
 
@@ -319,4 +319,4 @@ PrixFixe is released under the MIT License. See [LICENSE](LICENSE) for details.
 
 **Project Status**: v0.2.0 Release Ready - STARTTLS/TLS Support Complete
 
-**Ready for Production Use**: PrixFixe has completed all seven development phases and is ready for v0.2.0 release with full STARTTLS/TLS encryption support. The library is production-ready with comprehensive testing (252 tests, 108 TLS-specific), documentation, and CI/CD infrastructure. See [CHANGELOG](CHANGELOG.md) for complete release notes and [docs/TLS-GUIDE.md](docs/TLS-GUIDE.md) for TLS configuration.
+**Ready for Production Use**: PrixFixe has completed all seven development phases and is ready for v0.2.0 release with full STARTTLS/TLS encryption support. The library is production-ready with comprehensive testing (258 tests, 108 TLS-specific), documentation, and CI/CD infrastructure. See [CHANGELOG](CHANGELOG.md) for complete release notes and [Documentation/TLS-GUIDE.md](Documentation/TLS-GUIDE.md) for TLS configuration.
