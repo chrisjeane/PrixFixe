@@ -103,7 +103,7 @@ public final class FoundationSocket: NetworkTransport, @unchecked Sendable {
             }
 
             guard clientFD >= 0 else {
-                throw NetworkError.acceptFailed("accept() failed: \(String(cString: strerror(errno))))")
+                throw NetworkError.acceptFailed("accept() failed: \(String(cString: strerror(errno)))")
             }
 
             // Parse remote address
@@ -163,11 +163,9 @@ public final class FoundationSocket: NetworkTransport, @unchecked Sendable {
         }
 
         // Handle zone ID for link-local addresses
+        // if_nametoindex is POSIX-standard and available on both Darwin and Glibc
         if let zoneID = address.zoneID {
-            // Convert zone name to interface index
-            #if canImport(Darwin)
             addr.sin6_scope_id = if_nametoindex(zoneID)
-            #endif
         }
 
         // Bind
@@ -238,7 +236,7 @@ public final class FoundationConnection: NetworkConnection, @unchecked Sendable 
                     // Non-blocking socket would block - return empty data to retry
                     return Data()
                 } else {
-                    throw NetworkError.readFailed("read() failed: \(String(cString: strerror(err))))")
+                    throw NetworkError.readFailed("read() failed: \(String(cString: strerror(err)))")
                 }
             } else if bytesRead == 0 {
                 // Connection closed
@@ -279,7 +277,7 @@ public final class FoundationConnection: NetworkConnection, @unchecked Sendable 
                         try await Task.sleep(nanoseconds: 1_000_000) // 1ms
                         continue
                     } else {
-                        throw NetworkError.writeFailed("write() failed: \(String(cString: strerror(err))))")
+                        throw NetworkError.writeFailed("write() failed: \(String(cString: strerror(err)))")
                     }
                 } else if bytesWritten == 0 {
                     // No bytes written - socket may be closed
