@@ -8,13 +8,13 @@
 
 PrixFixe is a pure Swift SMTP server library designed to be embedded in applications across Linux, macOS, and iOS. It provides RFC 5321 core compliance with modern Swift concurrency support.
 
-## Status: v0.2.0 - STARTTLS Support
+## Status: v0.2.1 - Stable STARTTLS Support
 
 **PrixFixe now includes complete STARTTLS/TLS encryption support**
 
 The SMTP server provides production-ready TLS encryption via STARTTLS, with platform-native implementations using Security.framework on macOS/iOS and OpenSSL on Linux. Full RFC 5321 compliance with modern security features.
 
-**Current Status**: 248/258 tests passing ✅ | Zero warnings ✅ | Multi-platform TLS ready ✅ | 108 TLS-specific tests ✅
+**Current Status**: 308/318 tests passing ✅ | Zero warnings ✅ | Multi-platform TLS ready ✅ | 108 TLS-specific tests ✅
 
 ## Features
 
@@ -101,22 +101,54 @@ The server will listen on the configured port and accept SMTP connections with f
 
 ### Swift Package Manager
 
-Add PrixFixe to your `Package.swift`:
+Add PrixFixe to your `Package.swift` dependencies:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/yourusername/PrixFixe.git", from: "0.2.0")
+    .package(url: "https://github.com/YOUR-USERNAME/PrixFixe.git", from: "0.2.1")
 ]
 ```
 
-Then add it to your target:
+Then add it to your target dependencies:
 
 ```swift
 .target(
     name: "YourTarget",
-    dependencies: ["PrixFixe"]
+    dependencies: [
+        .product(name: "PrixFixe", package: "PrixFixe")
+    ]
 )
 ```
+
+Replace `YOUR-USERNAME` with the actual GitHub username or organization where the repository is hosted.
+
+#### Importing Modules
+
+Import the main umbrella module for all functionality:
+
+```swift
+import PrixFixe
+```
+
+Or import individual modules as needed:
+
+```swift
+import PrixFixeCore      // SMTP server and protocol implementation
+import PrixFixeNetwork   // Network transport abstractions
+import PrixFixeMessage   // Email message structures
+import PrixFixePlatform  // Platform detection
+```
+
+#### Requirements
+
+- **Swift**: 6.0 or later
+- **Platforms**:
+  - macOS 13.0+ (Ventura)
+  - iOS 16.0+
+  - Linux (Ubuntu 22.04 LTS or equivalent)
+- **TLS Support** (optional, for STARTTLS):
+  - macOS/iOS: No additional dependencies (uses system Security.framework)
+  - Linux: OpenSSL development libraries (`libssl-dev`)
 
 ## Platform Support
 
@@ -291,15 +323,15 @@ PrixFixe is designed for:
 - **Development Tools**: Local email capture and debugging
 - **IoT Devices**: Lightweight email receiving on resource-constrained devices
 
-## Requirements
+## System Requirements
 
 - **Swift**: 6.0 or later
 - **Platforms**:
-  - Linux (Ubuntu 22.04+ or equivalent)
-  - macOS 13.0+
+  - Linux (Ubuntu 22.04 LTS or equivalent)
+  - macOS 13.0+ (Ventura)
   - iOS 16.0+
-- **TLS Support**:
-  - Linux: OpenSSL development libraries (libssl-dev)
+- **TLS Support** (optional, for STARTTLS):
+  - Linux: OpenSSL development libraries (`libssl-dev`)
   - macOS/iOS: Security.framework (included with OS)
 
 ## License
@@ -318,6 +350,6 @@ PrixFixe is released under the MIT License. See [LICENSE](LICENSE) for details.
 
 ---
 
-**Project Status**: v0.2.0 Release Ready - STARTTLS/TLS Support Complete
+**Project Status**: v0.2.1 - Stable Release with STARTTLS/TLS Support
 
-**Ready for Production Use**: PrixFixe has completed all seven development phases and is ready for v0.2.0 release with full STARTTLS/TLS encryption support. The library is production-ready with comprehensive testing (258 tests, 108 TLS-specific), documentation, and CI/CD infrastructure. See [CHANGELOG](CHANGELOG.md) for complete release notes and [Documentation/TLS-GUIDE.md](Documentation/TLS-GUIDE.md) for TLS configuration.
+**Ready for Production Use**: PrixFixe has completed all seven development phases and is ready for production use with full STARTTLS/TLS encryption support. The library is production-ready with comprehensive testing (318 tests total, 308 passing, 108 TLS-specific), documentation, and CI/CD infrastructure. See [CHANGELOG](CHANGELOG.md) for complete release notes and [Documentation/TLS-GUIDE.md](Documentation/TLS-GUIDE.md) for TLS configuration.
