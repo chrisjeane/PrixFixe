@@ -2,10 +2,20 @@
 
 **Project**: PrixFixe - Lightweight Embedded SMTP Server
 **Platform**: Swift (Linux, macOS, iOS)
-**Status**: v0.2.0 RELEASE READY ✅
+**Status**: v0.2.1 IN REVIEW ⚠️
 **Last Updated**: 2025-11-28
 
-## ✅ v0.2.0 Release Status: READY FOR RELEASE
+## ⚠️ v0.2.1 Release Status: CONDITIONAL PASS - Testing Required
+
+**Current Status**: ⚠️ **CONDITIONAL PASS - Address Critical Issues**
+**Test Coverage Issue**: MetricsCollector has zero test coverage (CRITICAL)
+**Test Results**: 255/265 passing (96.2%)
+**Build Status**: Debug (0 warnings) | Release (26 warnings - expected)
+
+See: [V0.2.1 Release Review](reports/V0.2.1-RELEASE-REVIEW.md) for comprehensive analysis
+See: [V0.2.1 Implementation Summary](reports/V0.2.1-IMPLEMENTATION-SUMMARY.md) for changes overview
+
+## ✅ v0.2.0 Release Status: RELEASED
 
 **Final Status**: ✅ **APPROVED FOR RELEASE**
 **All Critical Issues**: RESOLVED
@@ -18,6 +28,7 @@ See: [V0.2.0 Release Review](reports/V0.2.0-RELEASE-REVIEW.md) for comprehensive
 ## Planning Artifacts
 
 ### Release Reviews & Status
+- [v0.2.1 Release Readiness Review](reports/V0.2.1-RELEASE-REVIEW.md) - ⚠️ **CONDITIONAL PASS** - Test coverage required (2025-11-28)
 - [v0.2.0 Release Readiness Review](reports/V0.2.0-RELEASE-REVIEW.md) - ✅ **APPROVED - Release Ready** (FINAL - 2025-11-28)
 - [v0.2.0 Release Summary](V0.2.0-RELEASE-SUMMARY.md) - ✅ **APPROVED - Release Ready** (FINAL - 2025-11-28)
 - [v0.1.0 Release Readiness](V0.1.0-RELEASE-READINESS.md) - Final release assessment (APPROVED)
@@ -27,12 +38,19 @@ See: [V0.2.0 Release Review](reports/V0.2.0-RELEASE-REVIEW.md) for comprehensive
 - [Next Phase Issues](NEXT_PHASE_ISSUES.md) - v0.3.0 roadmap and future enhancements
 - [Organization Summary](ORGANIZATION-SUMMARY.md) - Planning directory structure and reorganization
 
+### v0.2.1 Issues - OPEN ⚠️
+- [CRIT-1: MetricsCollector Test Coverage](issues/CRIT-1-metrics-collector-test-coverage.md) - ⚠️ **BLOCKS RELEASE** - Zero test coverage
+- [HIGH-1: Network.framework Test Failures](issues/HIGH-1-network-framework-test-failures.md) - ⚠️ **OPEN** - Investigation required
+
 ### v0.2.0 Issues - All RESOLVED ✅
 - [CRITICAL-001: macOS/iOS TLS Not Implemented](issues/CRITICAL-001-macos-tls-not-implemented.md) - ✅ **RESOLVED** - Fully implemented
 - [HIGH-002: Self-Signed Certs Not Implemented](issues/HIGH-002-selfsigned-certs-not-implemented.md) - ✅ **RESOLVED** - Implemented (macOS/iOS)
 - [MEDIUM-003: Documentation Fixes](issues/MEDIUM-003-documentation-fixes.md) - ✅ **RESOLVED** - All fixes applied
 
 ### Reports & Summaries
+- [v0.2.1 Release Review](reports/V0.2.1-RELEASE-REVIEW.md) - ⚠️ Comprehensive release readiness assessment (CONDITIONAL PASS)
+- [v0.2.1 Implementation Summary](reports/V0.2.1-IMPLEMENTATION-SUMMARY.md) - ✅ Stability improvements implementation
+- [v0.2.1 TLS Performance Analysis](reports/V0.2.1-TLS-PERFORMANCE-ANALYSIS.md) - ✅ TLS overhead analysis and methodology
 - [v0.2.0 Release Review](reports/V0.2.0-RELEASE-REVIEW.md) - ✅ Comprehensive final release readiness assessment (APPROVED)
 - [v0.2.0 Stress Test Report](reports/V0.2.0-STRESS-TEST-REPORT.md) - ✅ Performance validation (659 msg/sec, 100% success)
 - [v0.2.0 Stress Test Action Items](tasks/v0.2.0-stress-test-action-items.md) - 📋 Action items from stress testing (12 items, 1 blocks release)
