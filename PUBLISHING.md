@@ -34,18 +34,18 @@ Add the GitHub repository as remote origin:
 
 ```bash
 cd /Users/chris/Code/MCP/PrixFixe
-git remote add origin https://github.com/YOUR-USERNAME/PrixFixe.git
+git remote add origin https://github.com/chrisjeane/PrixFixe.git
 ```
 
-Replace `YOUR-USERNAME` with your actual GitHub username.
+Replace `chrisjeane` with your actual GitHub username.
 
 ### 3. Update README with Your Username
 
 Update the placeholder in README.md:
 
 ```bash
-# Find and replace YOUR-USERNAME with your actual GitHub username
-sed -i '' 's/YOUR-USERNAME/your-actual-username/g' README.md
+# Find and replace chrisjeane with your actual GitHub username
+sed -i '' 's/chrisjeane/your-actual-username/g' README.md
 ```
 
 Or manually edit line 108 in `/Users/chris/Code/MCP/PrixFixe/README.md`
@@ -104,12 +104,12 @@ Major feature release adding complete STARTTLS/TLS encryption support.
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/YOUR-USERNAME/PrixFixe.git", from: "0.2.0")
+    .package(url: "https://github.com/chrisjeane/PrixFixe.git", from: "0.2.0")
 ]
 ```
 
-See [CHANGELOG.md](https://github.com/YOUR-USERNAME/PrixFixe/blob/main/CHANGELOG.md) for complete release notes.
-See [TLS-GUIDE.md](https://github.com/YOUR-USERNAME/PrixFixe/blob/main/Documentation/TLS-GUIDE.md) for TLS configuration.
+See [CHANGELOG.md](https://github.com/chrisjeane/PrixFixe/blob/main/CHANGELOG.md) for complete release notes.
+See [TLS-GUIDE.md](https://github.com/chrisjeane/PrixFixe/blob/main/Documentation/TLS-GUIDE.md) for TLS configuration.
 EOF
 )"
 
@@ -138,7 +138,7 @@ Stability and testing improvements release building on v0.2.0 STARTTLS/TLS suppo
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/YOUR-USERNAME/PrixFixe.git", from: "0.2.1")
+    .package(url: "https://github.com/chrisjeane/PrixFixe.git", from: "0.2.1")
 ]
 ```
 
@@ -150,7 +150,7 @@ EOF
 
 **Option B: Using GitHub Web Interface**
 
-1. Go to https://github.com/YOUR-USERNAME/PrixFixe/releases
+1. Go to https://github.com/chrisjeane/PrixFixe/releases
 2. Click "Create a new release"
 3. Select tag `v0.2.0`
 4. Title: "v0.2.0 - STARTTLS/TLS Support"
@@ -176,7 +176,7 @@ let package = Package(
     name: "TestPrixFixe",
     platforms: [.macOS(.v13)],
     dependencies: [
-        .package(url: "https://github.com/YOUR-USERNAME/PrixFixe.git", from: "0.2.1")
+        .package(url: "https://github.com/chrisjeane/PrixFixe.git", from: "0.2.1")
     ],
     targets: [
         .executableTarget(
@@ -214,7 +214,7 @@ swift run
 Submit your package to the Swift Package Index for better discoverability:
 
 1. Go to https://swiftpackageindex.com/add-a-package
-2. Enter your repository URL: `https://github.com/YOUR-USERNAME/PrixFixe`
+2. Enter your repository URL: `https://github.com/chrisjeane/PrixFixe`
 3. Submit for inclusion
 
 Requirements:
@@ -322,10 +322,10 @@ Common causes:
 
 For questions or issues:
 
-- **GitHub Issues**: https://github.com/YOUR-USERNAME/PrixFixe/issues
-- **Documentation**: https://github.com/YOUR-USERNAME/PrixFixe/blob/main/README.md
-- **TLS Guide**: https://github.com/YOUR-USERNAME/PrixFixe/blob/main/Documentation/TLS-GUIDE.md
+- **GitHub Issues**: https://github.com/chrisjeane/PrixFixe/issues
+- **Documentation**: https://github.com/chrisjeane/PrixFixe/blob/main/README.md
+- **TLS Guide**: https://github.com/chrisjeane/PrixFixe/blob/main/Documentation/TLS-GUIDE.md
 
 ---
 
-**Note**: Remember to replace `YOUR-USERNAME` with your actual GitHub username throughout all files and commands.
+**Note**: Remember to replace `chrisjeane` with your actual GitHub username throughout all files and commands.

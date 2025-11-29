@@ -32,7 +32,7 @@ Updated README.md with:
   - Module import examples
   - Platform requirements clearly listed
   - TLS dependency notes (OpenSSL for Linux)
-- Placeholder `YOUR-USERNAME` for GitHub URL (requires user replacement)
+- Placeholder `chrisjeane` for GitHub URL (requires user replacement)
 - System requirements section
 - Improved formatting and structure
 
@@ -112,14 +112,14 @@ gh repo create PrixFixe --public --description "Lightweight embedded SMTP server
 
 #### 2. Update README with Your Username
 
-Replace `YOUR-USERNAME` in README.md with your actual GitHub username:
+Replace `chrisjeane` in README.md with your actual GitHub username:
 
 ```bash
 # Find the placeholder (should be on line 108)
-grep -n "YOUR-USERNAME" README.md
+grep -n "chrisjeane" README.md
 
 # Option A: Using sed (macOS)
-sed -i '' 's/YOUR-USERNAME/your-actual-username/g' README.md
+sed -i '' 's/chrisjeane/your-actual-username/g' README.md
 
 # Option B: Manually edit
 # Edit /Users/chris/Code/MCP/PrixFixe/README.md line 108
@@ -146,10 +146,10 @@ git commit -m "Prepare package for publication
 #### 4. Configure Git Remote
 
 ```bash
-git remote add origin https://github.com/YOUR-USERNAME/PrixFixe.git
+git remote add origin https://github.com/chrisjeane/PrixFixe.git
 ```
 
-Replace `YOUR-USERNAME` with your GitHub username.
+Replace `chrisjeane` with your GitHub username.
 
 #### 5. Push to GitHub
 
@@ -168,14 +168,14 @@ git push origin v0.2.1
 
 ```bash
 # See PUBLISHING.md for complete commands
-# After replacing YOUR-USERNAME in the commands:
+# After replacing chrisjeane in the commands:
 gh release create v0.2.0 --title "v0.2.0 - STARTTLS/TLS Support" --notes "..."
 gh release create v0.2.1 --title "v0.2.1 - Stability Improvements" --notes "..." --latest
 ```
 
 **Using GitHub Web Interface**:
 
-1. Go to `https://github.com/YOUR-USERNAME/PrixFixe/releases`
+1. Go to `https://github.com/chrisjeane/PrixFixe/releases`
 2. Click "Create a new release"
 3. Select tag `v0.2.0`
 4. Use release notes from PUBLISHING.md
@@ -201,7 +201,7 @@ let package = Package(
     name: "TestPrixFixe",
     platforms: [.macOS(.v13)],
     dependencies: [
-        .package(url: "https://github.com/YOUR-USERNAME/PrixFixe.git", from: "0.2.1")
+        .package(url: "https://github.com/chrisjeane/PrixFixe.git", from: "0.2.1")
     ],
     targets: [
         .executableTarget(
@@ -241,7 +241,7 @@ Your package meets all requirements:
 
 **Package Name**: PrixFixe
 **Current Version**: 0.2.1
-**Repository URL**: `https://github.com/YOUR-USERNAME/PrixFixe.git`
+**Repository URL**: `https://github.com/chrisjeane/PrixFixe.git`
 **License**: MIT
 **Swift Version**: 6.0+
 
@@ -251,7 +251,7 @@ Users will add your package like this:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/YOUR-USERNAME/PrixFixe.git", from: "0.2.1")
+    .package(url: "https://github.com/chrisjeane/PrixFixe.git", from: "0.2.1")
 ]
 ```
 
@@ -323,8 +323,8 @@ swift build -c release
 ### Essential Commands
 
 ```bash
-# 1. Update README (replace YOUR-USERNAME)
-sed -i '' 's/YOUR-USERNAME/actual-username/g' README.md
+# 1. Update README (replace chrisjeane)
+sed -i '' 's/chrisjeane/actual-username/g' README.md
 
 # 2. Commit changes
 git add README.md PUBLISHING.md PUBLICATION-SUMMARY.md scripts/publish.sh
@@ -334,7 +334,7 @@ git commit -m "Prepare package for publication"
 gh repo create PrixFixe --public
 
 # 4. Add remote
-git remote add origin https://github.com/YOUR-USERNAME/PrixFixe.git
+git remote add origin https://github.com/chrisjeane/PrixFixe.git
 
 # 5. Push everything
 git push -u origin main
@@ -379,7 +379,7 @@ swift build
 
 1. ✅ **Review this summary** - Understand what's been done
 2. ⬜ **Create GitHub repository** - `gh repo create` or web interface
-3. ⬜ **Update README** - Replace `YOUR-USERNAME` with your GitHub username
+3. ⬜ **Update README** - Replace `chrisjeane` with your GitHub username
 4. ⬜ **Commit changes** - Commit the new documentation files
 5. ⬜ **Push to GitHub** - Push code and tags
 6. ⬜ **Create releases** - Use gh CLI or web interface

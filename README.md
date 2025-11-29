@@ -105,7 +105,7 @@ Add PrixFixe to your `Package.swift` dependencies:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/YOUR-USERNAME/PrixFixe.git", from: "0.2.1")
+    .package(url: "https://github.com/chrisjeane/PrixFixe.git", from: "0.2.1")
 ]
 ```
 
@@ -120,7 +120,7 @@ Then add it to your target dependencies:
 )
 ```
 
-Replace `YOUR-USERNAME` with the actual GitHub username or organization where the repository is hosted.
+Replace `chrisjeane` with the actual GitHub username or organization where the repository is hosted.
 
 #### Importing Modules
 
@@ -210,7 +210,7 @@ See [Architecture Documentation](.plan/architecture/2025-11-27-system-architectu
 - **[Production Deployment Guide](Documentation/PRODUCTION-DEPLOYMENT.md)**: Performance characteristics, capacity planning, and production operations
 - **[Integration Guide](.plan/INTEGRATION.md)**: Comprehensive guide for embedding PrixFixe in your application
 - **[Deployment Guide](DEPLOYMENT.md)**: Docker deployment and infrastructure configuration
-- **[API Documentation](https://yourusername.github.io/PrixFixe)**: Full DocC documentation (coming soon)
+- **[API Documentation](https://chrisjeane.github.io/PrixFixe)**: Full DocC documentation (coming soon)
 - **[CHANGELOG](CHANGELOG.md)**: Version history and release notes
 - **[Examples](Examples/)**: Working examples including SimpleServer
 
